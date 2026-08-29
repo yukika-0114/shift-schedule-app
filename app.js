@@ -7,6 +7,7 @@ const DEFAULT_STATE = {
   shifts: [],
   settings: { yearLimitEnabled: false, yearLimitValue: 1030000 },
   actualMonthlyIncome: {},
+  timePresets: [],
 };
 
 function loadState() {
@@ -19,6 +20,7 @@ function loadState() {
       shifts: parsed.shifts || [],
       settings: Object.assign({}, DEFAULT_STATE.settings, parsed.settings || {}),
       actualMonthlyIncome: parsed.actualMonthlyIncome || {},
+      timePresets: parsed.timePresets || [],
     };
   } catch (e) {
     console.error('state load failed', e);
@@ -33,6 +35,12 @@ function saveState() {
 function uid() {
   if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
   return 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+}
+
+// makes a numeric field's existing value select automatically on focus, so
+// tapping it lets you overtype immediately instead of needing to clear it.
+function selectOnFocus(el) {
+  el.addEventListener('focus', () => el.select());
 }
 
 // generic left/right swipe detection, used by the calendar and monthly
@@ -97,6 +105,7 @@ let viewYear, viewMonth; // viewMonth: 0-11
 let currentDayKey = null;
 let editingShiftId = null;
 let editingWorkplaceId = null;
+let editingPresetId = null;
 
 // ---- shift calculations ----
 function shiftDurationHours(start, end, breakMin) {
@@ -156,6 +165,52 @@ function fmtHours(h) {
   return h.toFixed(1) + 'h';
 }
 
+// ---- multi-date selection (long-press a day to batch-add the same shift) ----
+let selectionMode = false;
+let selectedDates = new Set();
+const selectionBar = document.getElementById('selectionBar');
+const selectionCountLabel = document.getElementById('selectionCountLabel');
+
+function updateSelectionCountLabel() {
+  selectionCountLabel.textContent = `${selectedDates.size}日を選択中`;
+}
+
+function enterSelectionMode(key) {
+  selectionMode = true;
+  selectedDates = new Set([key]);
+  selectionBar.hidden = false;
+  updateSelectionCountLabel();
+  renderCalendar();
+}
+
+function toggleDateSelection(key) {
+  if (selectedDates.has(key)) selectedDates.delete(key);
+  else selectedDates.add(key);
+  if (selectedDates.size === 0) { exitSelectionMode(); return; }
+  updateSelectionCountLabel();
+  renderCalendar();
+}
+
+function exitSelectionMode() {
+  selectionMode = false;
+  selectedDates = new Set();
+  selectionBar.hidden = true;
+  renderCalendar();
+}
+
+document.getElementById('selectionCancelBtn').addEventListener('click', exitSelectionMode);
+document.getElementById('selectionConfirmBtn').addEventListener('click', () => {
+  const dates = [...selectedDates].sort();
+  exitSelectionMode();
+  if (state.workplaces.length === 0) {
+    alert('先に「職場」を登録してください。');
+    openWorkplaceModal();
+    return;
+  }
+  currentDayKey = dates[0];
+  openShiftModal(null, dates.slice(1));
+});
+
 // ---- rendering: calendar ----
 const monthLabelEl = document.getElementById('monthLabel');
 const calendarEl = document.getElementById('calendar');
@@ -200,10 +255,12 @@ function renderCalendar() {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'day-cell';
+    btn.dataset.dateKey = key;
     if (cell.otherMonth) btn.classList.add('other-month');
     if (key === today) btn.classList.add('today');
     if (col === 0) btn.classList.add('sun-col');
     if (col === 6) btn.classList.add('sat-col');
+    if (selectedDates.has(key)) btn.classList.add('selected');
 
     const num = document.createElement('div');
     num.className = 'day-num';
@@ -235,10 +292,44 @@ function renderCalendar() {
       btn.appendChild(inc);
     }
 
-    btn.addEventListener('click', () => openDayModal(key));
+    btn.addEventListener('click', () => {
+      if (longPressTriggered) { longPressTriggered = false; return; }
+      if (selectionMode) toggleDateSelection(key);
+      else openDayModal(key);
+    });
     calendarEl.appendChild(btn);
   });
 }
+
+// ---- long-press detection on the calendar (enters/extends selection mode) ----
+let longPressTimer = null;
+let longPressTriggered = false;
+let longPressStartX = 0, longPressStartY = 0;
+
+function cancelLongPress() {
+  if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+}
+
+calendarEl.addEventListener('pointerdown', (e) => {
+  const cell = e.target.closest('.day-cell');
+  if (!cell) return;
+  longPressTriggered = false;
+  longPressStartX = e.clientX;
+  longPressStartY = e.clientY;
+  longPressTimer = window.setTimeout(() => {
+    longPressTriggered = true;
+    const key = cell.dataset.dateKey;
+    if (selectionMode) toggleDateSelection(key);
+    else enterSelectionMode(key);
+  }, 500);
+});
+calendarEl.addEventListener('pointerup', cancelLongPress);
+calendarEl.addEventListener('pointercancel', cancelLongPress);
+calendarEl.addEventListener('pointerleave', cancelLongPress);
+calendarEl.addEventListener('pointermove', (e) => {
+  if (!longPressTimer) return;
+  if (Math.abs(e.clientX - longPressStartX) > 10 || Math.abs(e.clientY - longPressStartY) > 10) cancelLongPress();
+});
 
 // ---- rendering: summary ----
 const monthIncomeLabelEl = document.getElementById('monthIncomeLabel');
@@ -254,7 +345,7 @@ function renderSummary() {
   const monthShifts = shiftsForMonth(viewYear, viewMonth);
   const monthHours = monthShifts.reduce((sum, s) => sum + effectiveShiftHours(s), 0);
   const hasOverride = state.actualMonthlyIncome[monthKeyFor(viewYear, viewMonth)] != null;
-  monthIncomeLabelEl.textContent = hasOverride ? '今月の実績収入' : '今月の予想収入';
+  monthIncomeLabelEl.textContent = hasOverride ? '今月の実績収入' : '今月の収入見込み';
   monthIncomeEl.textContent = fmtYen(monthlyIncomeFor(viewYear, viewMonth));
   monthHoursEl.textContent = fmtHours(monthHours);
 
@@ -382,9 +473,8 @@ document.getElementById('addShiftBtn').addEventListener('click', () => {
 const shiftModal = document.getElementById('shiftModal');
 const shiftModalTitle = document.getElementById('shiftModalTitle');
 const shiftWorkplaceSel = document.getElementById('shiftWorkplace');
-const shiftStartInput = document.getElementById('shiftStart');
-const shiftEndInput = document.getElementById('shiftEnd');
-const shiftBreakInput = document.getElementById('shiftBreak');
+const timeBlockList = document.getElementById('timeBlockList');
+const addTimeBlockBtn = document.getElementById('addTimeBlockBtn');
 const shiftMemoInput = document.getElementById('shiftMemo');
 const shiftCalcPreview = document.getElementById('shiftCalcPreview');
 const deleteShiftBtn = document.getElementById('deleteShiftBtn');
@@ -400,6 +490,8 @@ const batchSection = document.getElementById('batchSection');
 const batchDateInput = document.getElementById('batchDateInput');
 const batchDateList = document.getElementById('batchDateList');
 let batchDates = [];
+
+selectOnFocus(actualBreakInput);
 
 function renderBatchDateList() {
   batchDateList.innerHTML = '';
@@ -435,21 +527,161 @@ document.getElementById('batchAddDateBtn').addEventListener('click', () => {
   renderBatchDateList();
 });
 
-batchToggleInput.addEventListener('change', () => {
-  batchSection.hidden = !batchToggleInput.checked;
-  if (batchToggleInput.checked) {
+function updateActualToggleVisibility() {
+  const hide = getTimeBlocks().length > 1 || batchToggleInput.checked;
+  actualToggleWrap.hidden = hide;
+  if (hide && actualToggleInput.checked) {
     actualToggleInput.checked = false;
     actualSection.hidden = true;
   }
-  actualToggleWrap.hidden = batchToggleInput.checked;
+}
+
+batchToggleInput.addEventListener('change', () => {
+  batchSection.hidden = !batchToggleInput.checked;
+  updateActualToggleVisibility();
+  updateShiftCalcPreview();
+});
+
+// ---- time blocks (the "＋ 時間帯を追加" repeatable start/end/break rows) ----
+function populatePresetSelect(selectEl) {
+  selectEl.innerHTML = '<option value="">プリセットから選択</option>';
+  state.timePresets.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = (p.label ? p.label + '　' : '') + `${p.start}-${p.end}`;
+    selectEl.appendChild(opt);
+  });
+}
+
+function refreshAllPresetSelects() {
+  document.querySelectorAll('.tb-preset-select').forEach(populatePresetSelect);
+}
+
+function updateTimeBlockRemoveButtons() {
+  const rows = timeBlockList.querySelectorAll('.time-block-row');
+  rows.forEach(row => {
+    row.querySelector('.tb-remove-btn').hidden = rows.length <= 1;
+  });
+}
+
+function createTimeBlockRow(data) {
+  data = data || { start: '09:00', end: '17:00', breakMin: 0 };
+  const row = document.createElement('div');
+  row.className = 'time-block-row';
+
+  const presetSelect = document.createElement('select');
+  presetSelect.className = 'tb-preset-select';
+  populatePresetSelect(presetSelect);
+  row.appendChild(presetSelect);
+
+  const fieldRow = document.createElement('div');
+  fieldRow.className = 'field-row';
+
+  const startLabel = document.createElement('label');
+  startLabel.className = 'field';
+  const startSpan = document.createElement('span');
+  startSpan.textContent = '開始';
+  const startInput = document.createElement('input');
+  startInput.type = 'time';
+  startInput.className = 'tb-start';
+  startInput.required = true;
+  startInput.value = data.start;
+  startLabel.appendChild(startSpan);
+  startLabel.appendChild(startInput);
+
+  const endLabel = document.createElement('label');
+  endLabel.className = 'field';
+  const endSpan = document.createElement('span');
+  endSpan.textContent = '終了';
+  const endInput = document.createElement('input');
+  endInput.type = 'time';
+  endInput.className = 'tb-end';
+  endInput.required = true;
+  endInput.value = data.end;
+  endLabel.appendChild(endSpan);
+  endLabel.appendChild(endInput);
+
+  fieldRow.appendChild(startLabel);
+  fieldRow.appendChild(endLabel);
+  row.appendChild(fieldRow);
+
+  const breakLabel = document.createElement('label');
+  breakLabel.className = 'field';
+  const breakSpan = document.createElement('span');
+  breakSpan.textContent = '休憩（分）';
+  const breakInput = document.createElement('input');
+  breakInput.type = 'number';
+  breakInput.className = 'tb-break';
+  breakInput.min = '0';
+  breakInput.step = '5';
+  breakInput.value = data.breakMin;
+  selectOnFocus(breakInput);
+  breakLabel.appendChild(breakSpan);
+  breakLabel.appendChild(breakInput);
+  row.appendChild(breakLabel);
+
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'tb-remove-btn';
+  removeBtn.textContent = '× この時間帯を削除';
+  removeBtn.addEventListener('click', () => {
+    row.remove();
+    updateTimeBlockRemoveButtons();
+    updateActualToggleVisibility();
+    updateShiftCalcPreview();
+  });
+  row.appendChild(removeBtn);
+
+  presetSelect.addEventListener('change', () => {
+    const preset = state.timePresets.find(p => p.id === presetSelect.value);
+    if (preset) {
+      startInput.value = preset.start;
+      endInput.value = preset.end;
+      breakInput.value = preset.breakMin;
+      updateShiftCalcPreview();
+    }
+    presetSelect.value = '';
+  });
+
+  [startInput, endInput, breakInput].forEach(el => {
+    el.addEventListener('input', updateShiftCalcPreview);
+    el.addEventListener('change', updateShiftCalcPreview);
+  });
+
+  return row;
+}
+
+function resetTimeBlocks(blocks) {
+  timeBlockList.innerHTML = '';
+  const list = blocks && blocks.length ? blocks : [{ start: '09:00', end: '17:00', breakMin: 0 }];
+  list.forEach(b => timeBlockList.appendChild(createTimeBlockRow(b)));
+  updateTimeBlockRemoveButtons();
+}
+
+function getTimeBlocks() {
+  return [...timeBlockList.querySelectorAll('.time-block-row')].map(row => ({
+    start: row.querySelector('.tb-start').value,
+    end: row.querySelector('.tb-end').value,
+    breakMin: Number(row.querySelector('.tb-break').value) || 0,
+  }));
+}
+
+addTimeBlockBtn.addEventListener('click', () => {
+  timeBlockList.appendChild(createTimeBlockRow());
+  updateTimeBlockRemoveButtons();
+  updateActualToggleVisibility();
   updateShiftCalcPreview();
 });
 
 function updateShiftCalcPreview() {
   const wp = state.workplaces.find(w => w.id === shiftWorkplaceSel.value);
-  if (!wp || !shiftStartInput.value || !shiftEndInput.value) { shiftCalcPreview.textContent = ''; return; }
-  const plannedHours = shiftDurationHours(shiftStartInput.value, shiftEndInput.value, shiftBreakInput.value);
-  let text = `予定：${fmtHours(plannedHours)} ・ ${fmtYen(plannedHours * wp.wage)}`;
+  if (!wp) { shiftCalcPreview.textContent = ''; return; }
+  const blocks = getTimeBlocks();
+  let totalHours = 0;
+  blocks.forEach(b => {
+    if (b.start && b.end) totalHours += shiftDurationHours(b.start, b.end, b.breakMin);
+  });
+  let text = `予定：${fmtHours(totalHours)} ・ ${fmtYen(totalHours * wp.wage)}`;
   if (actualToggleInput.checked && actualStartInput.value && actualEndInput.value) {
     const actualHours = shiftDurationHours(actualStartInput.value, actualEndInput.value, actualBreakInput.value);
     text += `\n実績：${fmtHours(actualHours)} ・ ${fmtYen(actualHours * wp.wage)}`;
@@ -467,22 +699,21 @@ function populateWorkplaceSelect() {
   });
 }
 
-function openShiftModal(shiftId) {
+function openShiftModal(shiftId, presetBatchDates) {
   editingShiftId = shiftId;
   populateWorkplaceSelect();
   batchDates = [];
   batchToggleInput.checked = false;
   batchSection.hidden = true;
   renderBatchDateList();
-  actualToggleWrap.hidden = false;
   batchWrap.hidden = !!shiftId;
+
   if (shiftId) {
     const s = state.shifts.find(x => x.id === shiftId);
     shiftModalTitle.textContent = 'シフトを編集';
     shiftWorkplaceSel.value = s.workplaceId;
-    shiftStartInput.value = s.start;
-    shiftEndInput.value = s.end;
-    shiftBreakInput.value = s.breakMin;
+    resetTimeBlocks([{ start: s.start, end: s.end, breakMin: s.breakMin }]);
+    addTimeBlockBtn.hidden = true;
     shiftMemoInput.value = s.memo || '';
     actualToggleInput.checked = !!s.hasActual;
     actualSection.hidden = !s.hasActual;
@@ -492,9 +723,8 @@ function openShiftModal(shiftId) {
     deleteShiftBtn.hidden = false;
   } else {
     shiftModalTitle.textContent = 'シフトを追加';
-    shiftStartInput.value = '09:00';
-    shiftEndInput.value = '17:00';
-    shiftBreakInput.value = 0;
+    resetTimeBlocks();
+    addTimeBlockBtn.hidden = false;
     shiftMemoInput.value = '';
     actualToggleInput.checked = false;
     actualSection.hidden = true;
@@ -502,12 +732,21 @@ function openShiftModal(shiftId) {
     actualEndInput.value = '17:00';
     actualBreakInput.value = 0;
     deleteShiftBtn.hidden = true;
+
+    if (presetBatchDates && presetBatchDates.length > 0) {
+      batchDates = presetBatchDates.slice();
+      batchToggleInput.checked = true;
+      batchSection.hidden = false;
+      renderBatchDateList();
+    }
   }
+  updateActualToggleVisibility();
   updateShiftCalcPreview();
   shiftModal.showModal();
 }
 
-[shiftWorkplaceSel, shiftStartInput, shiftEndInput, shiftBreakInput, actualStartInput, actualEndInput, actualBreakInput].forEach(el => {
+shiftWorkplaceSel.addEventListener('change', updateShiftCalcPreview);
+[actualStartInput, actualEndInput, actualBreakInput].forEach(el => {
   el.addEventListener('input', updateShiftCalcPreview);
   el.addEventListener('change', updateShiftCalcPreview);
 });
@@ -515,36 +754,41 @@ function openShiftModal(shiftId) {
 actualToggleInput.addEventListener('change', () => {
   actualSection.hidden = !actualToggleInput.checked;
   if (actualToggleInput.checked) {
-    actualStartInput.value = shiftStartInput.value;
-    actualEndInput.value = shiftEndInput.value;
-    actualBreakInput.value = shiftBreakInput.value;
+    const first = getTimeBlocks()[0] || { start: '09:00', end: '17:00', breakMin: 0 };
+    actualStartInput.value = first.start;
+    actualEndInput.value = first.end;
+    actualBreakInput.value = first.breakMin;
   }
   updateShiftCalcPreview();
 });
 
 document.getElementById('closeShiftModal').addEventListener('click', () => shiftModal.close());
 
-// saves the form as one shift (editing) or one-per-date (adding, with the
-// batch dates included when enabled). returns false if the form is invalid.
+// saves the form as one shift (editing) or one shift per date × time-block
+// (adding, combining the batch dates with every time block entered).
 function saveShiftForm() {
-  if (!shiftWorkplaceSel.value || !shiftStartInput.value || !shiftEndInput.value) return false;
-  const base = {
+  const blocks = getTimeBlocks();
+  if (!shiftWorkplaceSel.value || blocks.length === 0 || blocks.some(b => !b.start || !b.end)) return false;
+  const shared = {
     workplaceId: shiftWorkplaceSel.value,
-    start: shiftStartInput.value,
-    end: shiftEndInput.value,
-    breakMin: Number(shiftBreakInput.value) || 0,
     memo: shiftMemoInput.value.trim(),
-    hasActual: actualToggleInput.checked,
   };
-  if (actualToggleInput.checked) {
-    base.actualStart = actualStartInput.value;
-    base.actualEnd = actualEndInput.value;
-    base.actualBreakMin = Number(actualBreakInput.value) || 0;
-  }
+
   if (editingShiftId) {
     const s = state.shifts.find(x => x.id === editingShiftId);
-    Object.assign(s, base, { date: currentDayKey });
-    if (!base.hasActual) {
+    const block = blocks[0];
+    Object.assign(s, shared, {
+      date: currentDayKey,
+      start: block.start,
+      end: block.end,
+      breakMin: block.breakMin,
+      hasActual: actualToggleInput.checked,
+    });
+    if (actualToggleInput.checked) {
+      s.actualStart = actualStartInput.value;
+      s.actualEnd = actualEndInput.value;
+      s.actualBreakMin = Number(actualBreakInput.value) || 0;
+    } else {
       delete s.actualStart;
       delete s.actualEnd;
       delete s.actualBreakMin;
@@ -553,8 +797,20 @@ function saveShiftForm() {
     const targetDates = batchToggleInput.checked && batchDates.length > 0
       ? [currentDayKey, ...batchDates]
       : [currentDayKey];
+    const hasActual = blocks.length === 1 && actualToggleInput.checked;
     targetDates.forEach(date => {
-      state.shifts.push(Object.assign({ id: uid(), date }, base));
+      blocks.forEach(block => {
+        const data = Object.assign(
+          { id: uid(), date, start: block.start, end: block.end, breakMin: block.breakMin, hasActual },
+          shared
+        );
+        if (hasActual) {
+          data.actualStart = actualStartInput.value;
+          data.actualEnd = actualEndInput.value;
+          data.actualBreakMin = Number(actualBreakInput.value) || 0;
+        }
+        state.shifts.push(data);
+      });
     });
   }
   saveState();
@@ -567,14 +823,6 @@ document.getElementById('shiftForm').addEventListener('submit', (e) => {
   shiftModal.close();
   dayModal.close();
   renderAll();
-});
-
-document.getElementById('saveAddAnotherBtn').addEventListener('click', () => {
-  if (!saveShiftForm()) return;
-  renderDayShiftList();
-  renderAll();
-  shiftModal.close();
-  openShiftModal(null);
 });
 
 deleteShiftBtn.addEventListener('click', () => {
@@ -701,7 +949,109 @@ document.getElementById('btnSettings').addEventListener('click', () => {
   settingsModal.showModal();
 });
 
-// ---- shared year-chart rendering (used by 年間収入 and 年間収入グラフ) ----
+// ---- 時間帯プリセット ----
+const presetListModal = document.getElementById('presetListModal');
+const presetListEl = document.getElementById('presetList');
+const presetEditModal = document.getElementById('presetEditModal');
+const presetEditTitle = document.getElementById('presetEditTitle');
+const presetNameInput = document.getElementById('presetName');
+const presetStartInput = document.getElementById('presetStart');
+const presetEndInput = document.getElementById('presetEnd');
+const presetBreakInput = document.getElementById('presetBreak');
+const deletePresetBtn = document.getElementById('deletePresetBtn');
+
+selectOnFocus(presetBreakInput);
+
+function renderPresetList() {
+  presetListEl.innerHTML = '';
+  if (state.timePresets.length === 0) {
+    const hint = document.createElement('div');
+    hint.className = 'empty-hint';
+    hint.textContent = 'まだプリセットが登録されていません';
+    presetListEl.appendChild(hint);
+    return;
+  }
+  state.timePresets.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'workplace-row';
+    const main = document.createElement('div');
+    main.className = 'workplace-row-main';
+    const name = document.createElement('span');
+    name.className = 'workplace-row-name';
+    name.textContent = p.label || `${p.start} - ${p.end}`;
+    const sub = document.createElement('span');
+    sub.className = 'workplace-row-sub';
+    sub.textContent = `${p.start} - ${p.end}` + (p.breakMin ? `（休憩${p.breakMin}分）` : '');
+    main.appendChild(name);
+    main.appendChild(sub);
+    row.appendChild(main);
+    row.addEventListener('click', () => openPresetEditModal(p.id));
+    presetListEl.appendChild(row);
+  });
+}
+
+document.getElementById('openPresetListBtn').addEventListener('click', () => {
+  renderPresetList();
+  presetListModal.showModal();
+});
+document.getElementById('closePresetList').addEventListener('click', () => presetListModal.close());
+document.getElementById('addPresetBtn').addEventListener('click', () => openPresetEditModal(null));
+
+function openPresetEditModal(presetId) {
+  editingPresetId = presetId;
+  if (presetId) {
+    const p = state.timePresets.find(x => x.id === presetId);
+    presetEditTitle.textContent = 'プリセットを編集';
+    presetNameInput.value = p.label || '';
+    presetStartInput.value = p.start;
+    presetEndInput.value = p.end;
+    presetBreakInput.value = p.breakMin;
+    deletePresetBtn.hidden = false;
+  } else {
+    presetEditTitle.textContent = 'プリセットを追加';
+    presetNameInput.value = '';
+    presetStartInput.value = '09:00';
+    presetEndInput.value = '17:00';
+    presetBreakInput.value = 0;
+    deletePresetBtn.hidden = true;
+  }
+  presetEditModal.showModal();
+}
+
+document.getElementById('closePresetEditModal').addEventListener('click', () => presetEditModal.close());
+
+presetEditModal.querySelector('form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (!presetStartInput.value || !presetEndInput.value) return;
+  const data = {
+    label: presetNameInput.value.trim(),
+    start: presetStartInput.value,
+    end: presetEndInput.value,
+    breakMin: Number(presetBreakInput.value) || 0,
+  };
+  if (editingPresetId) {
+    const p = state.timePresets.find(x => x.id === editingPresetId);
+    Object.assign(p, data);
+  } else {
+    state.timePresets.push(Object.assign({ id: uid() }, data));
+  }
+  saveState();
+  presetEditModal.close();
+  presetListModal.close();
+  refreshAllPresetSelects();
+});
+
+deletePresetBtn.addEventListener('click', () => {
+  if (!editingPresetId) return;
+  if (!confirm('このプリセットを削除しますか？')) return;
+  state.timePresets = state.timePresets.filter(p => p.id !== editingPresetId);
+  saveState();
+  presetEditModal.close();
+  presetListModal.close();
+  refreshAllPresetSelects();
+});
+
+// ---- shared year-chart rendering (used by 年間収入) ----
 function computeYearlyValues(year) {
   const values = [];
   for (let m = 0; m < 12; m++) values.push(monthlyIncomeFor(year, m));
@@ -781,6 +1131,8 @@ const reportPredictedIncomeEl = document.getElementById('reportPredictedIncome')
 const reportActualIncomeInput = document.getElementById('reportActualIncomeInput');
 let reportYear = viewYear;
 let reportMonth = viewMonth;
+
+selectOnFocus(reportActualIncomeInput);
 
 function renderMonthlyReport() {
   reportMonthLabel.textContent = `${reportYear}年${reportMonth + 1}月`;

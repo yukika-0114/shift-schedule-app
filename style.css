@@ -214,6 +214,11 @@ html, body {
   grid-template-columns: repeat(7, 1fr);
   gap: 1px;
   background: var(--border);
+  /* long-press is used to enter multi-date selection, so the native
+     text-selection/callout that would otherwise pop up must be disabled */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .day-cell {
@@ -242,6 +247,36 @@ html, body {
 .day-cell.today {
   box-shadow: inset 0 0 0 2px var(--accent);
   z-index: 1;
+}
+
+.day-cell.selected {
+  box-shadow: inset 0 0 0 2px var(--accent-actual);
+  background: var(--accent-actual-sub);
+  z-index: 1;
+}
+
+/* ---- multi-date selection bar (long-press on the calendar) ---- */
+.selection-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--accent-actual-sub);
+}
+
+.selection-bar #selectionCountLabel {
+  flex: 1;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.selection-bar .btn-primary {
+  flex: 0 0 auto;
+  padding: 8px 18px;
+  background: var(--accent-actual);
 }
 
 .day-num {
@@ -570,6 +605,29 @@ dialog.modal.modal-page .modal-form {
   font-size: 13px;
   font-weight: 700;
   color: var(--text-sub);
+}
+
+.time-block-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--surface-2);
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+.time-block-row .field-row { margin: 0; }
+
+.tb-remove-btn {
+  align-self: flex-end;
+  background: none;
+  border: none;
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 2px;
 }
 
 /* ---- settings menu ---- */

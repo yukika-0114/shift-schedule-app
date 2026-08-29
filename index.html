@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#4f46e5">
-<meta name="description" content="勤務スケジュールと予想収入を管理するPWA">
+<meta name="description" content="勤務スケジュールと収入見込みを管理するPWA">
 <title>シフト管理・収入予測</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon-192.png">
@@ -24,9 +24,15 @@
     <button id="btnSettings" class="icon-btn icon-btn-plain" aria-label="設定">⚙️</button>
   </header>
 
+  <div class="selection-bar" id="selectionBar" hidden>
+    <button type="button" id="selectionCancelBtn" class="icon-btn icon-btn-plain" aria-label="選択を解除">✕</button>
+    <span id="selectionCountLabel">1日を選択中</span>
+    <button type="button" id="selectionConfirmBtn" class="btn-primary">次へ</button>
+  </div>
+
   <section class="summary" id="summary">
     <div class="summary-card">
-      <span class="summary-label" id="monthIncomeLabel">今月の予想収入</span>
+      <span class="summary-label" id="monthIncomeLabel">今月の収入見込み</span>
       <span class="summary-value" id="monthIncome">¥0</span>
     </div>
     <div class="summary-card">
@@ -76,22 +82,9 @@
 
     <div class="time-section">
       <h3 class="time-section-title">予定の勤務時間</h3>
-      <div class="field-row">
-        <label class="field">
-          <span>開始</span>
-          <input type="time" id="shiftStart" required>
-        </label>
-        <label class="field">
-          <span>終了</span>
-          <input type="time" id="shiftEnd" required>
-        </label>
-      </div>
+      <div id="timeBlockList"></div>
+      <button type="button" id="addTimeBlockBtn" class="btn-secondary btn-block">＋ 時間帯を追加</button>
     </div>
-
-    <label class="field">
-      <span>休憩（分・予定）</span>
-      <input type="number" id="shiftBreak" min="0" step="5" value="0">
-    </label>
 
     <div id="batchWrap">
       <label class="field checkbox-field">
@@ -99,7 +92,7 @@
         <span>複数の日にまとめて登録する</span>
       </label>
       <div class="time-section" id="batchSection" hidden>
-        <h3 class="time-section-title">対象日を追加</h3>
+        <h3 class="time-section-title">対象日</h3>
         <div class="batch-add-row">
           <input type="date" id="batchDateInput">
           <button type="button" id="batchAddDateBtn" class="btn-secondary">追加</button>
@@ -138,7 +131,6 @@
 
     <div class="calc-preview" id="shiftCalcPreview"></div>
 
-    <button type="button" id="saveAddAnotherBtn" class="btn-secondary btn-block">保存して続けて追加</button>
     <div class="modal-actions">
       <button type="button" id="deleteShiftBtn" class="btn-danger" hidden>削除</button>
       <button type="submit" id="saveShiftBtn" class="btn-primary">保存</button>
@@ -198,6 +190,10 @@
       </button>
       <button type="button" class="settings-menu-item" id="openMonthlyReportBtn">
         <span>月次レポート</span>
+        <span class="chevron">›</span>
+      </button>
+      <button type="button" class="settings-menu-item" id="openPresetListBtn">
+        <span>時間帯プリセット</span>
         <span class="chevron">›</span>
       </button>
     </div>
@@ -270,7 +266,7 @@
           <span id="reportWorkHours">0.0h</span>
         </div>
         <div class="report-stat-row">
-          <span>予想収入</span>
+          <span>収入見込み</span>
           <span id="reportPredictedIncome">¥0</span>
         </div>
       </div>
@@ -288,6 +284,51 @@
   </div>
 </dialog>
 
+<!-- 時間帯プリセット一覧 -->
+<dialog id="presetListModal" class="modal modal-page">
+  <div class="modal-form">
+    <div class="modal-header">
+      <h2>時間帯プリセット</h2>
+      <button type="button" class="icon-btn" id="closePresetList" aria-label="閉じる">✕</button>
+    </div>
+    <div class="page-main">
+      <div id="presetList" class="workplace-list"></div>
+      <button type="button" id="addPresetBtn" class="btn-primary btn-block">＋ プリセットを追加</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- 時間帯プリセット編集 -->
+<dialog id="presetEditModal" class="modal">
+  <form method="dialog" class="modal-form">
+    <div class="modal-header">
+      <h2 id="presetEditTitle">プリセットを追加</h2>
+      <button type="button" class="icon-btn" id="closePresetEditModal" aria-label="閉じる">✕</button>
+    </div>
+    <label class="field">
+      <span>名前（任意）</span>
+      <input type="text" id="presetName" placeholder="例：早番">
+    </label>
+    <div class="field-row">
+      <label class="field">
+        <span>開始</span>
+        <input type="time" id="presetStart" required>
+      </label>
+      <label class="field">
+        <span>終了</span>
+        <input type="time" id="presetEnd" required>
+      </label>
+    </div>
+    <label class="field">
+      <span>休憩（分）</span>
+      <input type="number" id="presetBreak" min="0" step="5" value="0">
+    </label>
+    <div class="modal-actions">
+      <button type="button" id="deletePresetBtn" class="btn-danger" hidden>削除</button>
+      <button type="submit" id="savePresetBtn" class="btn-primary">保存</button>
+    </div>
+  </form>
+</dialog>
 
 <script src="app.js"></script>
 </body>
