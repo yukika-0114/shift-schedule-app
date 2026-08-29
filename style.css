@@ -48,6 +48,7 @@ html, body {
   font-family: "Hiragino Sans", "Yu Gothic UI", "Segoe UI", system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
+  touch-action: manipulation;
 }
 
 #app {
@@ -82,6 +83,7 @@ html, body {
   justify-content: center;
   color: var(--text);
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .icon-btn:active { transform: scale(0.94); }
@@ -128,13 +130,6 @@ html, body {
   color: var(--text-sub);
 }
 
-.summary-badge {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--accent-actual);
-  margin-left: 6px;
-}
-
 .summary-value {
   font-size: 20px;
   font-weight: 700;
@@ -163,14 +158,28 @@ html, body {
 .limit-bar-fill.warn { background: #e8a020; }
 .limit-bar-fill.over { background: var(--danger); }
 
+/* ---- calendar (seamless grid, no per-cell blocks) ---- */
+.calendar-card {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 4px 8px calc(8px + env(safe-area-inset-bottom));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+}
+
 .weekday-row {
   flex: 0 0 auto;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  padding: 0 8px;
+  padding: 8px 0;
   font-size: 12px;
   color: var(--text-sub);
   text-align: center;
+  border-bottom: 1px solid var(--border);
 }
 
 .weekday-row .sun { color: var(--sun); }
@@ -181,14 +190,13 @@ html, body {
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-  padding: 6px 8px calc(84px + env(safe-area-inset-bottom));
+  gap: 1px;
+  background: var(--border);
 }
 
 .day-cell {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border: none;
   min-height: 0;
   height: 100%;
   padding: 4px 4px;
@@ -200,6 +208,7 @@ html, body {
   font-family: inherit;
   color: var(--text);
   overflow: hidden;
+  position: relative;
 }
 
 .day-cell:active { background: var(--surface-2); }
@@ -209,8 +218,8 @@ html, body {
 }
 
 .day-cell.today {
-  border-color: var(--accent);
-  border-width: 2px;
+  box-shadow: inset 0 0 0 2px var(--accent);
+  z-index: 1;
 }
 
 .day-num {
@@ -238,24 +247,6 @@ html, body {
   font-weight: 700;
   color: var(--text-sub);
 }
-
-.fab {
-  position: fixed;
-  right: max(20px, calc(50% - 320px + 20px));
-  bottom: max(20px, env(safe-area-inset-bottom));
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  font-size: 26px;
-  border: none;
-  box-shadow: var(--shadow);
-  cursor: pointer;
-  z-index: 20;
-}
-
-.fab:active { transform: scale(0.95); }
 
 /* ---- modals ---- */
 dialog.modal {
@@ -288,6 +279,7 @@ dialog.modal::backdrop {
   gap: 12px;
   max-height: 85dvh;
   overflow-y: auto;
+  touch-action: pan-y;
 }
 
 .modal-header {
@@ -299,6 +291,11 @@ dialog.modal::backdrop {
 .modal-header h2 {
   font-size: 17px;
   margin: 0;
+}
+
+/* header row with only a close button (content title lives in .center-nav) */
+.modal-header:has(> .icon-btn:only-child) {
+  justify-content: flex-end;
 }
 
 .field {
@@ -477,11 +474,31 @@ dialog.modal::backdrop {
   color: var(--text-sub);
 }
 
-/* ---- settings extras ---- */
-.settings-divider {
+/* ---- settings menu ---- */
+.settings-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface-2);
   border: none;
-  border-top: 1px solid var(--border);
-  margin: 4px 0;
+  border-radius: 10px;
+  padding: 14px 14px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.settings-menu-item .chevron {
+  color: var(--text-sub);
+  font-size: 18px;
 }
 
 .field-hint {
@@ -490,15 +507,44 @@ dialog.modal::backdrop {
   margin: -6px 0 0;
 }
 
-/* ---- year income chart ---- */
-.chart-year-nav {
+/* ---- centered prev/next navigation (used by monthly report & year chart) ---- */
+.center-nav {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  touch-action: pan-y;
+}
+
+.center-nav h2 {
+  flex: 1;
+  text-align: center;
+  margin: 0;
+  font-size: 17px;
+}
+
+.report-stats {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
-.chart-year-nav h2 { min-width: 72px; text-align: center; }
+.report-stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+}
 
+.report-stat-row span:last-child {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+/* ---- year income chart ---- */
 .year-chart-svg {
   width: 100%;
   height: auto;

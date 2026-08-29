@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#4f46e5">
 <meta name="description" content="勤務スケジュールと予想収入を管理するPWA">
 <title>シフト管理・収入予測</title>
@@ -41,12 +41,12 @@
     </div>
   </section>
 
-  <div class="weekday-row">
-    <span class="sun">日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span class="sat">土</span>
+  <div class="calendar-card">
+    <div class="weekday-row">
+      <span class="sun">日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span class="sat">土</span>
+    </div>
+    <div class="calendar" id="calendar"></div>
   </div>
-  <div class="calendar" id="calendar"></div>
-
-  <button id="fab" class="fab" aria-label="予定を追加">＋</button>
 </div>
 
 <!-- 日詳細モーダル -->
@@ -168,11 +168,35 @@
   </form>
 </dialog>
 
-<!-- 設定モーダル -->
+<!-- 設定メニュー（項目一覧） -->
 <dialog id="settingsModal" class="modal">
   <form method="dialog" class="modal-form">
     <div class="modal-header">
       <h2>設定</h2>
+      <button type="submit" class="icon-btn" aria-label="閉じる">✕</button>
+    </div>
+    <div class="settings-menu">
+      <button type="button" class="settings-menu-item" id="openYearLimitBtn">
+        <span>年間収入</span>
+        <span class="chevron">›</span>
+      </button>
+      <button type="button" class="settings-menu-item" id="openMonthlyReportBtn">
+        <span>月次レポート</span>
+        <span class="chevron">›</span>
+      </button>
+      <button type="button" class="settings-menu-item" id="openYearChartBtn">
+        <span>年間収入グラフ</span>
+        <span class="chevron">›</span>
+      </button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 年間収入（上限額の設定） -->
+<dialog id="yearLimitModal" class="modal">
+  <form method="dialog" class="modal-form">
+    <div class="modal-header">
+      <h2>年間収入</h2>
       <button type="submit" class="icon-btn" aria-label="閉じる">✕</button>
     </div>
 
@@ -198,34 +222,61 @@
       <input type="number" id="yearLimitValue" min="0" step="1000">
     </label>
 
-    <hr class="settings-divider">
-
-    <label class="field">
-      <span id="actualIncomeLabel">実際の月収（任意）</span>
-      <input type="number" id="actualIncomeInput" min="0" step="1" placeholder="例：120000">
-    </label>
-    <p class="field-hint">入力すると、表示中の月はこの金額を実績収入として優先表示します。空欄に戻すと自動計算に戻ります。</p>
-
-    <hr class="settings-divider">
-
-    <button type="button" id="openYearChartBtn" class="btn-primary btn-block">年間収入グラフを見る</button>
-
     <div class="modal-actions">
       <button type="submit" class="btn-primary btn-block">保存して閉じる</button>
     </div>
   </form>
 </dialog>
 
-<!-- 年間収入グラフモーダル -->
+<!-- 月次レポート -->
+<dialog id="monthlyReportModal" class="modal">
+  <div class="modal-form">
+    <div class="modal-header">
+      <button type="button" class="icon-btn" id="closeMonthlyReport" aria-label="閉じる">✕</button>
+    </div>
+    <div class="center-nav">
+      <button type="button" id="reportPrevMonth" class="icon-btn" aria-label="前の月">‹</button>
+      <h2 id="reportMonthLabel">2026年8月</h2>
+      <button type="button" id="reportNextMonth" class="icon-btn" aria-label="次の月">›</button>
+    </div>
+
+    <div class="report-stats">
+      <div class="report-stat-row">
+        <span>勤務日数</span>
+        <span id="reportWorkDays">0日</span>
+      </div>
+      <div class="report-stat-row">
+        <span>勤務時間</span>
+        <span id="reportWorkHours">0.0h</span>
+      </div>
+      <div class="report-stat-row">
+        <span>予想収入</span>
+        <span id="reportPredictedIncome">¥0</span>
+      </div>
+    </div>
+
+    <label class="field">
+      <span>実際の収入（任意）</span>
+      <input type="number" id="reportActualIncomeInput" min="0" step="1" placeholder="例：120000">
+    </label>
+    <p class="field-hint">入力すると、この月は実績収入として優先表示されます。空欄に戻すと自動計算に戻ります。</p>
+
+    <div class="modal-actions">
+      <button type="button" id="saveReportBtn" class="btn-primary btn-block">保存</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- 年間収入グラフ -->
 <dialog id="yearChartModal" class="modal">
   <div class="modal-form">
     <div class="modal-header">
-      <div class="chart-year-nav">
-        <button type="button" id="chartPrevYear" class="icon-btn" aria-label="前の年">‹</button>
-        <h2 id="chartYearLabel">2026年</h2>
-        <button type="button" id="chartNextYear" class="icon-btn" aria-label="次の年">›</button>
-      </div>
       <button type="button" class="icon-btn" id="closeYearChart" aria-label="閉じる">✕</button>
+    </div>
+    <div class="center-nav">
+      <button type="button" id="chartPrevYear" class="icon-btn" aria-label="前の年">‹</button>
+      <h2 id="chartYearLabel">2026年</h2>
+      <button type="button" id="chartNextYear" class="icon-btn" aria-label="次の年">›</button>
     </div>
     <div id="yearChartSvgWrap"></div>
     <div class="chart-total" id="yearChartTotal"></div>

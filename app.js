@@ -96,12 +96,16 @@ function shiftsForMonth(y, m) {
   return state.shifts.filter(s => s.date.startsWith(prefix));
 }
 
+function calculatedMonthIncome(y, m) {
+  return shiftsForMonth(y, m).reduce((sum, s) => sum + effectiveShiftIncome(s), 0);
+}
+
 // income for a given month: a manually entered actual value wins over the
 // shift-based calculation, since real pay (taxes, rounding, bonuses) can differ.
 function monthlyIncomeFor(y, m) {
   const key = monthKeyFor(y, m);
   if (state.actualMonthlyIncome[key] != null) return state.actualMonthlyIncome[key];
-  return shiftsForMonth(y, m).reduce((sum, s) => sum + effectiveShiftIncome(s), 0);
+  return calculatedMonthIncome(y, m);
 }
 
 function fmtYen(n) {
@@ -329,10 +333,6 @@ document.getElementById('addShiftBtn').addEventListener('click', () => {
     return;
   }
   openShiftModal(null);
-});
-
-document.getElementById('fab').addEventListener('click', () => {
-  openDayModal(currentDayKey || todayKey());
 });
 
 // ---- shift edit modal ----
@@ -576,25 +576,25 @@ deleteWorkplaceBtn.addEventListener('click', () => {
   renderAll();
 });
 
-// ---- settings modal ----
+// ---- settings menu ----
 const settingsModal = document.getElementById('settingsModal');
+
+document.getElementById('btnSettings').addEventListener('click', () => {
+  settingsModal.showModal();
+});
+
+// ---- 年間収入（上限額の設定） ----
+const yearLimitModal = document.getElementById('yearLimitModal');
 const yearLimitEnabledInput = document.getElementById('yearLimitEnabled');
 const yearLimitPresetSel = document.getElementById('yearLimitPreset');
 const yearLimitValueInput = document.getElementById('yearLimitValue');
-const actualIncomeLabel = document.getElementById('actualIncomeLabel');
-const actualIncomeInput = document.getElementById('actualIncomeInput');
 
-document.getElementById('btnSettings').addEventListener('click', () => {
+document.getElementById('openYearLimitBtn').addEventListener('click', () => {
   yearLimitEnabledInput.checked = state.settings.yearLimitEnabled;
   yearLimitValueInput.value = state.settings.yearLimitValue || '';
   const presetMatch = Array.from(yearLimitPresetSel.options).find(o => Number(o.value) === state.settings.yearLimitValue);
   yearLimitPresetSel.value = presetMatch ? presetMatch.value : (state.settings.yearLimitValue ? 'custom' : '');
-
-  const monthKey = monthKeyFor(viewYear, viewMonth);
-  actualIncomeLabel.textContent = `${viewYear}年${viewMonth + 1}月の実際の月収（任意）`;
-  actualIncomeInput.value = state.actualMonthlyIncome[monthKey] != null ? state.actualMonthlyIncome[monthKey] : '';
-
-  settingsModal.showModal();
+  yearLimitModal.showModal();
 });
 
 yearLimitPresetSel.addEventListener('change', () => {
@@ -603,25 +603,69 @@ yearLimitPresetSel.addEventListener('change', () => {
   }
 });
 
-settingsModal.querySelector('form').addEventListener('submit', (e) => {
+yearLimitModal.querySelector('form').addEventListener('submit', (e) => {
   e.preventDefault();
   state.settings.yearLimitEnabled = yearLimitEnabledInput.checked;
   state.settings.yearLimitValue = Number(yearLimitValueInput.value) || 0;
-
-  const monthKey = monthKeyFor(viewYear, viewMonth);
-  const rawVal = actualIncomeInput.value.trim();
-  if (rawVal === '') {
-    delete state.actualMonthlyIncome[monthKey];
-  } else {
-    state.actualMonthlyIncome[monthKey] = Number(rawVal) || 0;
-  }
-
   saveState();
-  settingsModal.close();
+  yearLimitModal.close();
   renderAll();
 });
 
-// ---- year income chart modal ----
+// ---- 月次レポート ----
+const monthlyReportModal = document.getElementById('monthlyReportModal');
+const reportMonthLabel = document.getElementById('reportMonthLabel');
+const reportWorkDaysEl = document.getElementById('reportWorkDays');
+const reportWorkHoursEl = document.getElementById('reportWorkHours');
+const reportPredictedIncomeEl = document.getElementById('reportPredictedIncome');
+const reportActualIncomeInput = document.getElementById('reportActualIncomeInput');
+let reportYear = viewYear;
+let reportMonth = viewMonth;
+
+function renderMonthlyReport() {
+  reportMonthLabel.textContent = `${reportYear}年${reportMonth + 1}月`;
+  const shifts = shiftsForMonth(reportYear, reportMonth);
+  const workDays = new Set(shifts.map(s => s.date)).size;
+  const workHours = shifts.reduce((sum, s) => sum + effectiveShiftHours(s), 0);
+  reportWorkDaysEl.textContent = `${workDays}日`;
+  reportWorkHoursEl.textContent = fmtHours(workHours);
+  reportPredictedIncomeEl.textContent = fmtYen(calculatedMonthIncome(reportYear, reportMonth));
+  const key = monthKeyFor(reportYear, reportMonth);
+  reportActualIncomeInput.value = state.actualMonthlyIncome[key] != null ? state.actualMonthlyIncome[key] : '';
+}
+
+document.getElementById('openMonthlyReportBtn').addEventListener('click', () => {
+  reportYear = viewYear;
+  reportMonth = viewMonth;
+  renderMonthlyReport();
+  monthlyReportModal.showModal();
+});
+document.getElementById('reportPrevMonth').addEventListener('click', () => {
+  reportMonth--;
+  if (reportMonth < 0) { reportMonth = 11; reportYear--; }
+  renderMonthlyReport();
+});
+document.getElementById('reportNextMonth').addEventListener('click', () => {
+  reportMonth++;
+  if (reportMonth > 11) { reportMonth = 0; reportYear++; }
+  renderMonthlyReport();
+});
+document.getElementById('closeMonthlyReport').addEventListener('click', () => monthlyReportModal.close());
+
+document.getElementById('saveReportBtn').addEventListener('click', () => {
+  const key = monthKeyFor(reportYear, reportMonth);
+  const rawVal = reportActualIncomeInput.value.trim();
+  if (rawVal === '') {
+    delete state.actualMonthlyIncome[key];
+  } else {
+    state.actualMonthlyIncome[key] = Number(rawVal) || 0;
+  }
+  saveState();
+  monthlyReportModal.close();
+  renderAll();
+});
+
+// ---- 年間収入グラフ ----
 const yearChartModal = document.getElementById('yearChartModal');
 const chartYearLabel = document.getElementById('chartYearLabel');
 const yearChartSvgWrap = document.getElementById('yearChartSvgWrap');
@@ -663,6 +707,28 @@ document.getElementById('openYearChartBtn').addEventListener('click', () => {
 document.getElementById('chartPrevYear').addEventListener('click', () => { chartYear--; renderYearChart(); });
 document.getElementById('chartNextYear').addEventListener('click', () => { chartYear++; renderYearChart(); });
 document.getElementById('closeYearChart').addEventListener('click', () => yearChartModal.close());
+
+// swipe left/right on the chart to move between years
+(function enableYearChartSwipe() {
+  const target = yearChartModal.querySelector('.modal-form');
+  let startX = 0, startY = 0, tracking = false;
+  target.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    tracking = true;
+  }, { passive: true });
+  target.addEventListener('touchend', (e) => {
+    if (!tracking) return;
+    tracking = false;
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      chartYear += dx < 0 ? 1 : -1;
+      renderYearChart();
+    }
+  }, { passive: true });
+})();
 
 // ---- close dialogs by tapping outside ----
 document.querySelectorAll('dialog.modal').forEach(dialog => {
