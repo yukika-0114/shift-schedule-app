@@ -35,8 +35,8 @@ function uid() {
   return 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2);
 }
 
-// generic left/right swipe detection, used by the calendar, monthly report,
-// and year chart to move between months/years.
+// generic left/right swipe detection, used by the calendar and monthly
+// report to move between months.
 function onHorizontalSwipe(el, { onSwipeLeft, onSwipeRight }) {
   let startX = 0, startY = 0, tracking = false;
   el.addEventListener('touchstart', (e) => {
@@ -54,6 +54,26 @@ function onHorizontalSwipe(el, { onSwipeLeft, onSwipeRight }) {
       if (dx < 0) onSwipeLeft(); else onSwipeRight();
     }
   }, { passive: true });
+}
+
+// slide+fade transition so moving to the next/prev month (by swipe or by
+// tapping the arrow buttons) is visibly obvious, not a silent content swap.
+function animateSwap(el, direction, updateFn) {
+  const dist = 18;
+  const outX = direction === 'left' ? -dist : dist;
+  el.style.transition = 'transform 0.15s ease, opacity 0.15s ease';
+  el.style.transform = `translateX(${outX}px)`;
+  el.style.opacity = '0';
+  window.setTimeout(() => {
+    updateFn();
+    el.style.transition = 'none';
+    el.style.transform = `translateX(${-outX}px)`;
+    el.style.opacity = '0';
+    void el.offsetWidth; // force reflow so the next transition actually animates
+    el.style.transition = 'transform 0.15s ease, opacity 0.15s ease';
+    el.style.transform = 'translateX(0)';
+    el.style.opacity = '1';
+  }, 150);
 }
 
 let state = loadState();
@@ -77,7 +97,6 @@ let viewYear, viewMonth; // viewMonth: 0-11
 let currentDayKey = null;
 let editingShiftId = null;
 let editingWorkplaceId = null;
-let chartYear = viewYear;
 
 // ---- shift calculations ----
 function shiftDurationHours(start, end, breakMin) {
@@ -272,12 +291,12 @@ function renderAll() {
 function goToPrevMonth() {
   viewMonth--;
   if (viewMonth < 0) { viewMonth = 11; viewYear--; }
-  renderAll();
+  animateSwap(calendarEl, 'right', renderAll);
 }
 function goToNextMonth() {
   viewMonth++;
   if (viewMonth > 11) { viewMonth = 0; viewYear++; }
-  renderAll();
+  animateSwap(calendarEl, 'left', renderAll);
 }
 document.getElementById('prevMonth').addEventListener('click', goToPrevMonth);
 document.getElementById('nextMonth').addEventListener('click', goToNextMonth);
@@ -374,6 +393,57 @@ const actualSection = document.getElementById('actualSection');
 const actualStartInput = document.getElementById('actualStart');
 const actualEndInput = document.getElementById('actualEnd');
 const actualBreakInput = document.getElementById('actualBreak');
+const actualToggleWrap = document.getElementById('actualToggleWrap');
+const batchWrap = document.getElementById('batchWrap');
+const batchToggleInput = document.getElementById('batchToggle');
+const batchSection = document.getElementById('batchSection');
+const batchDateInput = document.getElementById('batchDateInput');
+const batchDateList = document.getElementById('batchDateList');
+let batchDates = [];
+
+function renderBatchDateList() {
+  batchDateList.innerHTML = '';
+  if (batchDates.length === 0) {
+    const hint = document.createElement('div');
+    hint.className = 'empty-hint';
+    hint.textContent = '追加日はまだありません';
+    batchDateList.appendChild(hint);
+    return;
+  }
+  batchDates.slice().sort().forEach(d => {
+    const chip = document.createElement('span');
+    chip.className = 'batch-date-chip';
+    chip.textContent = d;
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.textContent = '×';
+    rm.setAttribute('aria-label', `${d}を削除`);
+    rm.addEventListener('click', () => {
+      batchDates = batchDates.filter(x => x !== d);
+      renderBatchDateList();
+    });
+    chip.appendChild(rm);
+    batchDateList.appendChild(chip);
+  });
+}
+
+document.getElementById('batchAddDateBtn').addEventListener('click', () => {
+  const val = batchDateInput.value;
+  if (!val || val === currentDayKey || batchDates.includes(val)) { batchDateInput.value = ''; return; }
+  batchDates.push(val);
+  batchDateInput.value = '';
+  renderBatchDateList();
+});
+
+batchToggleInput.addEventListener('change', () => {
+  batchSection.hidden = !batchToggleInput.checked;
+  if (batchToggleInput.checked) {
+    actualToggleInput.checked = false;
+    actualSection.hidden = true;
+  }
+  actualToggleWrap.hidden = batchToggleInput.checked;
+  updateShiftCalcPreview();
+});
 
 function updateShiftCalcPreview() {
   const wp = state.workplaces.find(w => w.id === shiftWorkplaceSel.value);
@@ -400,6 +470,12 @@ function populateWorkplaceSelect() {
 function openShiftModal(shiftId) {
   editingShiftId = shiftId;
   populateWorkplaceSelect();
+  batchDates = [];
+  batchToggleInput.checked = false;
+  batchSection.hidden = true;
+  renderBatchDateList();
+  actualToggleWrap.hidden = false;
+  batchWrap.hidden = !!shiftId;
   if (shiftId) {
     const s = state.shifts.find(x => x.id === shiftId);
     shiftModalTitle.textContent = 'シフトを編集';
@@ -448,11 +524,11 @@ actualToggleInput.addEventListener('change', () => {
 
 document.getElementById('closeShiftModal').addEventListener('click', () => shiftModal.close());
 
-document.getElementById('shiftForm').addEventListener('submit', (e) => {
-  e.preventDefault();
-  if (!shiftWorkplaceSel.value || !shiftStartInput.value || !shiftEndInput.value) return;
-  const data = {
-    date: currentDayKey,
+// saves the form as one shift (editing) or one-per-date (adding, with the
+// batch dates included when enabled). returns false if the form is invalid.
+function saveShiftForm() {
+  if (!shiftWorkplaceSel.value || !shiftStartInput.value || !shiftEndInput.value) return false;
+  const base = {
     workplaceId: shiftWorkplaceSel.value,
     start: shiftStartInput.value,
     end: shiftEndInput.value,
@@ -461,26 +537,44 @@ document.getElementById('shiftForm').addEventListener('submit', (e) => {
     hasActual: actualToggleInput.checked,
   };
   if (actualToggleInput.checked) {
-    data.actualStart = actualStartInput.value;
-    data.actualEnd = actualEndInput.value;
-    data.actualBreakMin = Number(actualBreakInput.value) || 0;
+    base.actualStart = actualStartInput.value;
+    base.actualEnd = actualEndInput.value;
+    base.actualBreakMin = Number(actualBreakInput.value) || 0;
   }
   if (editingShiftId) {
     const s = state.shifts.find(x => x.id === editingShiftId);
-    Object.assign(s, data);
-    if (!data.hasActual) {
+    Object.assign(s, base, { date: currentDayKey });
+    if (!base.hasActual) {
       delete s.actualStart;
       delete s.actualEnd;
       delete s.actualBreakMin;
     }
   } else {
-    data.id = uid();
-    state.shifts.push(data);
+    const targetDates = batchToggleInput.checked && batchDates.length > 0
+      ? [currentDayKey, ...batchDates]
+      : [currentDayKey];
+    targetDates.forEach(date => {
+      state.shifts.push(Object.assign({ id: uid(), date }, base));
+    });
   }
   saveState();
+  return true;
+}
+
+document.getElementById('shiftForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (!saveShiftForm()) return;
   shiftModal.close();
   dayModal.close();
   renderAll();
+});
+
+document.getElementById('saveAddAnotherBtn').addEventListener('click', () => {
+  if (!saveShiftForm()) return;
+  renderDayShiftList();
+  renderAll();
+  shiftModal.close();
+  openShiftModal(null);
 });
 
 deleteShiftBtn.addEventListener('click', () => {
@@ -642,12 +736,14 @@ const yearLimitEnabledInput = document.getElementById('yearLimitEnabled');
 const yearLimitPresetSel = document.getElementById('yearLimitPreset');
 const yearLimitValueInput = document.getElementById('yearLimitValue');
 const yearLimitChartWrap = document.getElementById('yearLimitChartWrap');
+const yearLimitTotalIncome = document.getElementById('yearLimitTotalIncome');
 const yearLimitAvgIncome = document.getElementById('yearLimitAvgIncome');
 
 function renderYearLimitChart() {
   const values = computeYearlyValues(viewYear);
   yearLimitChartWrap.innerHTML = buildYearChartSvg(viewYear, values);
   const total = values.reduce((a, b) => a + b, 0);
+  yearLimitTotalIncome.textContent = `年間合計：${fmtYen(total)}`;
   yearLimitAvgIncome.textContent = `平均月収：${fmtYen(total / 12)}`;
 }
 
@@ -704,15 +800,16 @@ document.getElementById('openMonthlyReportBtn').addEventListener('click', () => 
   renderMonthlyReport();
   monthlyReportModal.showModal();
 });
+const reportPageMain = document.querySelector('#monthlyReportModal .page-main');
 function reportGoToPrevMonth() {
   reportMonth--;
   if (reportMonth < 0) { reportMonth = 11; reportYear--; }
-  renderMonthlyReport();
+  animateSwap(reportPageMain, 'right', renderMonthlyReport);
 }
 function reportGoToNextMonth() {
   reportMonth++;
   if (reportMonth > 11) { reportMonth = 0; reportYear++; }
-  renderMonthlyReport();
+  animateSwap(reportPageMain, 'left', renderMonthlyReport);
 }
 document.getElementById('reportPrevMonth').addEventListener('click', reportGoToPrevMonth);
 document.getElementById('reportNextMonth').addEventListener('click', reportGoToNextMonth);
@@ -733,35 +830,6 @@ document.getElementById('saveReportBtn').addEventListener('click', () => {
   saveState();
   monthlyReportModal.close();
   renderAll();
-});
-
-// ---- 年間収入グラフ ----
-const yearChartModal = document.getElementById('yearChartModal');
-const chartYearLabel = document.getElementById('chartYearLabel');
-const yearChartSvgWrap = document.getElementById('yearChartSvgWrap');
-const yearChartTotal = document.getElementById('yearChartTotal');
-
-function renderYearChart() {
-  chartYearLabel.textContent = `${chartYear}年`;
-  const values = computeYearlyValues(chartYear);
-  yearChartSvgWrap.innerHTML = buildYearChartSvg(chartYear, values);
-  const total = values.reduce((a, b) => a + b, 0);
-  yearChartTotal.textContent = `年間合計：${fmtYen(total)}`;
-}
-
-document.getElementById('openYearChartBtn').addEventListener('click', () => {
-  chartYear = viewYear;
-  renderYearChart();
-  yearChartModal.showModal();
-});
-function chartGoToPrevYear() { chartYear--; renderYearChart(); }
-function chartGoToNextYear() { chartYear++; renderYearChart(); }
-document.getElementById('chartPrevYear').addEventListener('click', chartGoToPrevYear);
-document.getElementById('chartNextYear').addEventListener('click', chartGoToNextYear);
-document.getElementById('closeYearChart').addEventListener('click', () => yearChartModal.close());
-onHorizontalSwipe(yearChartModal.querySelector('.modal-form'), {
-  onSwipeLeft: chartGoToNextYear,
-  onSwipeRight: chartGoToPrevYear,
 });
 
 // ---- close dialogs by tapping outside ----

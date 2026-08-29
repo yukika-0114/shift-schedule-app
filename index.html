@@ -93,7 +93,22 @@
       <input type="number" id="shiftBreak" min="0" step="5" value="0">
     </label>
 
-    <label class="field checkbox-field">
+    <div id="batchWrap">
+      <label class="field checkbox-field">
+        <input type="checkbox" id="batchToggle">
+        <span>複数の日にまとめて登録する</span>
+      </label>
+      <div class="time-section" id="batchSection" hidden>
+        <h3 class="time-section-title">対象日を追加</h3>
+        <div class="batch-add-row">
+          <input type="date" id="batchDateInput">
+          <button type="button" id="batchAddDateBtn" class="btn-secondary">追加</button>
+        </div>
+        <div class="batch-date-list" id="batchDateList"></div>
+      </div>
+    </div>
+
+    <label class="field checkbox-field" id="actualToggleWrap">
       <input type="checkbox" id="actualToggle">
       <span>実際の勤務時間を記録する</span>
     </label>
@@ -123,6 +138,7 @@
 
     <div class="calc-preview" id="shiftCalcPreview"></div>
 
+    <button type="button" id="saveAddAnotherBtn" class="btn-secondary btn-block">保存して続けて追加</button>
     <div class="modal-actions">
       <button type="button" id="deleteShiftBtn" class="btn-danger" hidden>削除</button>
       <button type="submit" id="saveShiftBtn" class="btn-primary">保存</button>
@@ -184,10 +200,6 @@
         <span>月次レポート</span>
         <span class="chevron">›</span>
       </button>
-      <button type="button" class="settings-menu-item" id="openYearChartBtn">
-        <span>年間収入グラフ</span>
-        <span class="chevron">›</span>
-      </button>
     </div>
   </form>
 </dialog>
@@ -224,6 +236,7 @@
       </label>
 
       <div id="yearLimitChartWrap"></div>
+      <div class="chart-total" id="yearLimitTotalIncome"></div>
       <div class="chart-total" id="yearLimitAvgIncome"></div>
     </div>
 
@@ -275,24 +288,6 @@
   </div>
 </dialog>
 
-<!-- 年間収入グラフ -->
-<dialog id="yearChartModal" class="modal modal-page">
-  <div class="modal-form">
-    <div class="modal-header">
-      <h2>年間収入グラフ</h2>
-      <button type="button" class="icon-btn" id="closeYearChart" aria-label="閉じる">✕</button>
-    </div>
-    <div class="center-nav">
-      <button type="button" id="chartPrevYear" class="nav-arrow-btn" aria-label="前の年">‹</button>
-      <span class="center-nav-value" id="chartYearLabel">2026年</span>
-      <button type="button" id="chartNextYear" class="nav-arrow-btn" aria-label="次の年">›</button>
-    </div>
-    <div class="page-main">
-      <div id="yearChartSvgWrap"></div>
-      <div class="chart-total" id="yearChartTotal"></div>
-    </div>
-  </div>
-</dialog>
 
 <script src="app.js"></script>
 </body>
