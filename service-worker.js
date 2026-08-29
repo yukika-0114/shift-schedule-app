@@ -1,9 +1,8 @@
-const CACHE_NAME = 'shiftapp-cache-v3';
+const CACHE_NAME = 'shiftapp-cache-v4';
 const APP_SHELL = [
   './',
   './index.html',
   './style.css',
-  './timewheel.js',
   './app.js',
   './manifest.json',
   './icons/icon-192.png',

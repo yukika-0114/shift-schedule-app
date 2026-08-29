@@ -6,6 +6,7 @@ const DEFAULT_STATE = {
   workplaces: [],
   shifts: [],
   settings: { yearLimitEnabled: false, yearLimitValue: 1030000 },
+  actualMonthlyIncome: {},
 };
 
 function loadState() {
@@ -17,6 +18,7 @@ function loadState() {
       workplaces: parsed.workplaces || [],
       shifts: parsed.shifts || [],
       settings: Object.assign({}, DEFAULT_STATE.settings, parsed.settings || {}),
+      actualMonthlyIncome: parsed.actualMonthlyIncome || {},
     };
   } catch (e) {
     console.error('state load failed', e);
@@ -38,6 +40,7 @@ let state = loadState();
 // ---- date helpers ----
 function pad2(n) { return String(n).padStart(2, '0'); }
 function toDateKey(y, m, d) { return `${y}-${pad2(m + 1)}-${pad2(d)}`; }
+function monthKeyFor(y, m) { return `${y}-${pad2(m + 1)}`; }
 function todayKey() {
   const t = new Date();
   return toDateKey(t.getFullYear(), t.getMonth(), t.getDate());
@@ -53,6 +56,7 @@ let viewYear, viewMonth; // viewMonth: 0-11
 let currentDayKey = null;
 let editingShiftId = null;
 let editingWorkplaceId = null;
+let chartYear = viewYear;
 
 // ---- shift calculations ----
 function shiftDurationHours(start, end, breakMin) {
@@ -92,9 +96,12 @@ function shiftsForMonth(y, m) {
   return state.shifts.filter(s => s.date.startsWith(prefix));
 }
 
-function shiftsForYear(y) {
-  const prefix = `${y}-`;
-  return state.shifts.filter(s => s.date.startsWith(prefix));
+// income for a given month: a manually entered actual value wins over the
+// shift-based calculation, since real pay (taxes, rounding, bonuses) can differ.
+function monthlyIncomeFor(y, m) {
+  const key = monthKeyFor(y, m);
+  if (state.actualMonthlyIncome[key] != null) return state.actualMonthlyIncome[key];
+  return shiftsForMonth(y, m).reduce((sum, s) => sum + effectiveShiftIncome(s), 0);
 }
 
 function fmtYen(n) {
@@ -140,6 +147,8 @@ function renderCalendar() {
     const ny = viewMonth === 11 ? viewYear + 1 : viewYear;
     cells.push({ y: ny, m: nm, d: i, otherMonth: true });
   }
+
+  calendarEl.style.gridTemplateRows = `repeat(${cells.length / 7}, 1fr)`;
 
   cells.forEach((cell, idx) => {
     const key = toDateKey(cell.y, cell.m, cell.d);
@@ -188,6 +197,7 @@ function renderCalendar() {
 }
 
 // ---- rendering: summary ----
+const monthIncomeLabelEl = document.getElementById('monthIncomeLabel');
 const monthIncomeEl = document.getElementById('monthIncome');
 const monthHoursEl = document.getElementById('monthHours');
 const yearLimitCard = document.getElementById('yearLimitCard');
@@ -198,15 +208,16 @@ const limitSub = document.getElementById('limitSub');
 
 function renderSummary() {
   const monthShifts = shiftsForMonth(viewYear, viewMonth);
-  const monthIncome = monthShifts.reduce((sum, s) => sum + effectiveShiftIncome(s), 0);
   const monthHours = monthShifts.reduce((sum, s) => sum + effectiveShiftHours(s), 0);
-  monthIncomeEl.textContent = fmtYen(monthIncome);
+  const hasOverride = state.actualMonthlyIncome[monthKeyFor(viewYear, viewMonth)] != null;
+  monthIncomeLabelEl.textContent = hasOverride ? '今月の実績収入' : '今月の予想収入';
+  monthIncomeEl.textContent = fmtYen(monthlyIncomeFor(viewYear, viewMonth));
   monthHoursEl.textContent = fmtHours(monthHours);
 
   if (state.settings.yearLimitEnabled && state.settings.yearLimitValue > 0) {
     yearLimitCard.hidden = false;
-    const yearShifts = shiftsForYear(viewYear);
-    const yearIncome = yearShifts.reduce((sum, s) => sum + effectiveShiftIncome(s), 0);
+    let yearIncome = 0;
+    for (let m = 0; m < 12; m++) yearIncome += monthlyIncomeFor(viewYear, m);
     yearLimitYearEl.textContent = viewYear;
     yearIncomeEl.textContent = fmtYen(yearIncome);
     const limit = state.settings.yearLimitValue;
@@ -328,40 +339,29 @@ document.getElementById('fab').addEventListener('click', () => {
 const shiftModal = document.getElementById('shiftModal');
 const shiftModalTitle = document.getElementById('shiftModalTitle');
 const shiftWorkplaceSel = document.getElementById('shiftWorkplace');
+const shiftStartInput = document.getElementById('shiftStart');
+const shiftEndInput = document.getElementById('shiftEnd');
 const shiftBreakInput = document.getElementById('shiftBreak');
 const shiftMemoInput = document.getElementById('shiftMemo');
 const shiftCalcPreview = document.getElementById('shiftCalcPreview');
 const deleteShiftBtn = document.getElementById('deleteShiftBtn');
 const actualToggleInput = document.getElementById('actualToggle');
 const actualSection = document.getElementById('actualSection');
+const actualStartInput = document.getElementById('actualStart');
+const actualEndInput = document.getElementById('actualEnd');
 const actualBreakInput = document.getElementById('actualBreak');
 
 function updateShiftCalcPreview() {
   const wp = state.workplaces.find(w => w.id === shiftWorkplaceSel.value);
-  if (!wp) { shiftCalcPreview.textContent = ''; return; }
-  const planned = plannedWheel.getTimes();
-  const plannedHours = TimeWheel.durationHours(planned.startMin, planned.endMin, Number(shiftBreakInput.value) || 0);
+  if (!wp || !shiftStartInput.value || !shiftEndInput.value) { shiftCalcPreview.textContent = ''; return; }
+  const plannedHours = shiftDurationHours(shiftStartInput.value, shiftEndInput.value, shiftBreakInput.value);
   let text = `予定：${fmtHours(plannedHours)} ・ ${fmtYen(plannedHours * wp.wage)}`;
-  if (actualToggleInput.checked) {
-    const actual = actualWheel.getTimes();
-    const actualHours = TimeWheel.durationHours(actual.startMin, actual.endMin, Number(actualBreakInput.value) || 0);
+  if (actualToggleInput.checked && actualStartInput.value && actualEndInput.value) {
+    const actualHours = shiftDurationHours(actualStartInput.value, actualEndInput.value, actualBreakInput.value);
     text += `\n実績：${fmtHours(actualHours)} ・ ${fmtYen(actualHours * wp.wage)}`;
   }
   shiftCalcPreview.textContent = text;
 }
-
-const plannedWheel = TimeWheel.mount(document.getElementById('plannedWheel'), {
-  accent: 'var(--accent)',
-  startLabel: '出勤（予定）',
-  endLabel: '退勤（予定）',
-  onChange: updateShiftCalcPreview,
-});
-const actualWheel = TimeWheel.mount(document.getElementById('actualWheel'), {
-  accent: 'var(--accent-actual)',
-  startLabel: '出勤（実績）',
-  endLabel: '退勤（実績）',
-  onChange: updateShiftCalcPreview,
-});
 
 function populateWorkplaceSelect() {
   shiftWorkplaceSel.innerHTML = '';
@@ -380,61 +380,44 @@ function openShiftModal(shiftId) {
     const s = state.shifts.find(x => x.id === shiftId);
     shiftModalTitle.textContent = 'シフトを編集';
     shiftWorkplaceSel.value = s.workplaceId;
-    plannedWheel.setTimes(TimeWheel.timeToMin(s.start), TimeWheel.timeToMin(s.end));
+    shiftStartInput.value = s.start;
+    shiftEndInput.value = s.end;
     shiftBreakInput.value = s.breakMin;
-    plannedWheel.setBreakMinutes(s.breakMin);
     shiftMemoInput.value = s.memo || '';
     actualToggleInput.checked = !!s.hasActual;
     actualSection.hidden = !s.hasActual;
-    if (s.hasActual) {
-      actualWheel.setTimes(TimeWheel.timeToMin(s.actualStart), TimeWheel.timeToMin(s.actualEnd));
-      actualBreakInput.value = s.actualBreakMin || 0;
-    } else {
-      actualWheel.setTimes(TimeWheel.timeToMin(s.start), TimeWheel.timeToMin(s.end));
-      actualBreakInput.value = s.breakMin;
-    }
-    actualWheel.setBreakMinutes(actualBreakInput.value);
+    actualStartInput.value = s.hasActual ? s.actualStart : s.start;
+    actualEndInput.value = s.hasActual ? s.actualEnd : s.end;
+    actualBreakInput.value = s.hasActual ? (s.actualBreakMin || 0) : s.breakMin;
     deleteShiftBtn.hidden = false;
   } else {
     shiftModalTitle.textContent = 'シフトを追加';
-    plannedWheel.setTimes(9 * 60, 17 * 60);
+    shiftStartInput.value = '09:00';
+    shiftEndInput.value = '17:00';
     shiftBreakInput.value = 0;
-    plannedWheel.setBreakMinutes(0);
     shiftMemoInput.value = '';
     actualToggleInput.checked = false;
     actualSection.hidden = true;
-    actualWheel.setTimes(9 * 60, 17 * 60);
+    actualStartInput.value = '09:00';
+    actualEndInput.value = '17:00';
     actualBreakInput.value = 0;
-    actualWheel.setBreakMinutes(0);
     deleteShiftBtn.hidden = true;
   }
   updateShiftCalcPreview();
   shiftModal.showModal();
 }
 
-shiftWorkplaceSel.addEventListener('change', updateShiftCalcPreview);
-
-function syncPlannedBreak() {
-  plannedWheel.setBreakMinutes(shiftBreakInput.value);
-  updateShiftCalcPreview();
-}
-shiftBreakInput.addEventListener('input', syncPlannedBreak);
-shiftBreakInput.addEventListener('change', syncPlannedBreak);
-
-function syncActualBreak() {
-  actualWheel.setBreakMinutes(actualBreakInput.value);
-  updateShiftCalcPreview();
-}
-actualBreakInput.addEventListener('input', syncActualBreak);
-actualBreakInput.addEventListener('change', syncActualBreak);
+[shiftWorkplaceSel, shiftStartInput, shiftEndInput, shiftBreakInput, actualStartInput, actualEndInput, actualBreakInput].forEach(el => {
+  el.addEventListener('input', updateShiftCalcPreview);
+  el.addEventListener('change', updateShiftCalcPreview);
+});
 
 actualToggleInput.addEventListener('change', () => {
   actualSection.hidden = !actualToggleInput.checked;
   if (actualToggleInput.checked) {
-    const planned = plannedWheel.getTimes();
-    actualWheel.setTimes(planned.startMin, planned.endMin);
+    actualStartInput.value = shiftStartInput.value;
+    actualEndInput.value = shiftEndInput.value;
     actualBreakInput.value = shiftBreakInput.value;
-    actualWheel.setBreakMinutes(actualBreakInput.value);
   }
   updateShiftCalcPreview();
 });
@@ -443,21 +426,19 @@ document.getElementById('closeShiftModal').addEventListener('click', () => shift
 
 document.getElementById('shiftForm').addEventListener('submit', (e) => {
   e.preventDefault();
-  if (!shiftWorkplaceSel.value) return;
-  const planned = plannedWheel.getTimes();
+  if (!shiftWorkplaceSel.value || !shiftStartInput.value || !shiftEndInput.value) return;
   const data = {
     date: currentDayKey,
     workplaceId: shiftWorkplaceSel.value,
-    start: TimeWheel.minToTime(planned.startMin),
-    end: TimeWheel.minToTime(planned.endMin),
+    start: shiftStartInput.value,
+    end: shiftEndInput.value,
     breakMin: Number(shiftBreakInput.value) || 0,
     memo: shiftMemoInput.value.trim(),
     hasActual: actualToggleInput.checked,
   };
   if (actualToggleInput.checked) {
-    const actual = actualWheel.getTimes();
-    data.actualStart = TimeWheel.minToTime(actual.startMin);
-    data.actualEnd = TimeWheel.minToTime(actual.endMin);
+    data.actualStart = actualStartInput.value;
+    data.actualEnd = actualEndInput.value;
     data.actualBreakMin = Number(actualBreakInput.value) || 0;
   }
   if (editingShiftId) {
@@ -474,7 +455,7 @@ document.getElementById('shiftForm').addEventListener('submit', (e) => {
   }
   saveState();
   shiftModal.close();
-  renderDayShiftList();
+  dayModal.close();
   renderAll();
 });
 
@@ -484,7 +465,7 @@ deleteShiftBtn.addEventListener('click', () => {
   state.shifts = state.shifts.filter(s => s.id !== editingShiftId);
   saveState();
   shiftModal.close();
-  renderDayShiftList();
+  dayModal.close();
   renderAll();
 });
 
@@ -576,7 +557,7 @@ workplaceEditModal.querySelector('form').addEventListener('submit', (e) => {
   }
   saveState();
   workplaceEditModal.close();
-  renderWorkplaceList();
+  workplaceModal.close();
   renderAll();
 });
 
@@ -591,7 +572,7 @@ deleteWorkplaceBtn.addEventListener('click', () => {
   state.workplaces = state.workplaces.filter(w => w.id !== editingWorkplaceId);
   saveState();
   workplaceEditModal.close();
-  renderWorkplaceList();
+  workplaceModal.close();
   renderAll();
 });
 
@@ -600,12 +581,19 @@ const settingsModal = document.getElementById('settingsModal');
 const yearLimitEnabledInput = document.getElementById('yearLimitEnabled');
 const yearLimitPresetSel = document.getElementById('yearLimitPreset');
 const yearLimitValueInput = document.getElementById('yearLimitValue');
+const actualIncomeLabel = document.getElementById('actualIncomeLabel');
+const actualIncomeInput = document.getElementById('actualIncomeInput');
 
 document.getElementById('btnSettings').addEventListener('click', () => {
   yearLimitEnabledInput.checked = state.settings.yearLimitEnabled;
   yearLimitValueInput.value = state.settings.yearLimitValue || '';
   const presetMatch = Array.from(yearLimitPresetSel.options).find(o => Number(o.value) === state.settings.yearLimitValue);
   yearLimitPresetSel.value = presetMatch ? presetMatch.value : (state.settings.yearLimitValue ? 'custom' : '');
+
+  const monthKey = monthKeyFor(viewYear, viewMonth);
+  actualIncomeLabel.textContent = `${viewYear}年${viewMonth + 1}月の実際の月収（任意）`;
+  actualIncomeInput.value = state.actualMonthlyIncome[monthKey] != null ? state.actualMonthlyIncome[monthKey] : '';
+
   settingsModal.showModal();
 });
 
@@ -619,10 +607,62 @@ settingsModal.querySelector('form').addEventListener('submit', (e) => {
   e.preventDefault();
   state.settings.yearLimitEnabled = yearLimitEnabledInput.checked;
   state.settings.yearLimitValue = Number(yearLimitValueInput.value) || 0;
+
+  const monthKey = monthKeyFor(viewYear, viewMonth);
+  const rawVal = actualIncomeInput.value.trim();
+  if (rawVal === '') {
+    delete state.actualMonthlyIncome[monthKey];
+  } else {
+    state.actualMonthlyIncome[monthKey] = Number(rawVal) || 0;
+  }
+
   saveState();
   settingsModal.close();
   renderAll();
 });
+
+// ---- year income chart modal ----
+const yearChartModal = document.getElementById('yearChartModal');
+const chartYearLabel = document.getElementById('chartYearLabel');
+const yearChartSvgWrap = document.getElementById('yearChartSvgWrap');
+const yearChartTotal = document.getElementById('yearChartTotal');
+
+function renderYearChart() {
+  chartYearLabel.textContent = `${chartYear}年`;
+  const values = [];
+  for (let m = 0; m < 12; m++) values.push(monthlyIncomeFor(chartYear, m));
+  const max = Math.max(1, ...values);
+
+  const width = 320, height = 210, padTop = 20, padBottom = 26, barGap = 6;
+  const barWidth = (width - barGap * 13) / 12;
+
+  let bars = '';
+  values.forEach((v, i) => {
+    const h = max > 0 ? (v / max) * (height - padTop - padBottom) : 0;
+    const x = barGap + i * (barWidth + barGap);
+    const y = height - padBottom - h;
+    const isCurrent = chartYear === viewYear && i === viewMonth;
+    bars += `<rect x="${x}" y="${y}" width="${barWidth}" height="${Math.max(h, 1)}" rx="3" class="year-chart-bar${isCurrent ? ' current' : ''}"></rect>`;
+    if (v > 0) {
+      const labelY = Math.max(padTop - 4, y - 4);
+      bars += `<text x="${x + barWidth / 2}" y="${labelY}" text-anchor="middle" class="year-chart-value-label">${(v / 10000).toFixed(1)}万</text>`;
+    }
+    bars += `<text x="${x + barWidth / 2}" y="${height - padBottom + 16}" text-anchor="middle" class="year-chart-month-label">${i + 1}</text>`;
+  });
+
+  yearChartSvgWrap.innerHTML = `<svg viewBox="0 0 ${width} ${height}" class="year-chart-svg">${bars}</svg>`;
+  const total = values.reduce((a, b) => a + b, 0);
+  yearChartTotal.textContent = `年間合計：${fmtYen(total)}`;
+}
+
+document.getElementById('openYearChartBtn').addEventListener('click', () => {
+  chartYear = viewYear;
+  renderYearChart();
+  yearChartModal.showModal();
+});
+document.getElementById('chartPrevYear').addEventListener('click', () => { chartYear--; renderYearChart(); });
+document.getElementById('chartNextYear').addEventListener('click', () => { chartYear++; renderYearChart(); });
+document.getElementById('closeYearChart').addEventListener('click', () => yearChartModal.close());
 
 // ---- close dialogs by tapping outside ----
 document.querySelectorAll('dialog.modal').forEach(dialog => {

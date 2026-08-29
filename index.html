@@ -26,7 +26,7 @@
 
   <section class="summary" id="summary">
     <div class="summary-card">
-      <span class="summary-label">今月の予想収入</span>
+      <span class="summary-label" id="monthIncomeLabel">今月の予想収入</span>
       <span class="summary-value" id="monthIncome">¥0</span>
     </div>
     <div class="summary-card">
@@ -74,9 +74,18 @@
       <select id="shiftWorkplace" required></select>
     </label>
 
-    <div class="wheel-section">
-      <h3 class="wheel-section-title">予定の勤務時間</h3>
-      <div id="plannedWheel" class="time-wheel-mount"></div>
+    <div class="time-section">
+      <h3 class="time-section-title">予定の勤務時間</h3>
+      <div class="field-row">
+        <label class="field">
+          <span>開始</span>
+          <input type="time" id="shiftStart" required>
+        </label>
+        <label class="field">
+          <span>終了</span>
+          <input type="time" id="shiftEnd" required>
+        </label>
+      </div>
     </div>
 
     <label class="field">
@@ -89,9 +98,18 @@
       <span>実際の勤務時間を記録する</span>
     </label>
 
-    <div class="wheel-section actual-section" id="actualSection" hidden>
-      <h3 class="wheel-section-title">実際の勤務時間</h3>
-      <div id="actualWheel" class="time-wheel-mount"></div>
+    <div class="time-section actual-section" id="actualSection" hidden>
+      <h3 class="time-section-title">実際の勤務時間</h3>
+      <div class="field-row">
+        <label class="field">
+          <span>出勤</span>
+          <input type="time" id="actualStart">
+        </label>
+        <label class="field">
+          <span>退勤</span>
+          <input type="time" id="actualEnd">
+        </label>
+      </div>
       <label class="field">
         <span>休憩（分・実績）</span>
         <input type="number" id="actualBreak" min="0" step="5" value="0">
@@ -180,13 +198,40 @@
       <input type="number" id="yearLimitValue" min="0" step="1000">
     </label>
 
+    <hr class="settings-divider">
+
+    <label class="field">
+      <span id="actualIncomeLabel">実際の月収（任意）</span>
+      <input type="number" id="actualIncomeInput" min="0" step="1" placeholder="例：120000">
+    </label>
+    <p class="field-hint">入力すると、表示中の月はこの金額を実績収入として優先表示します。空欄に戻すと自動計算に戻ります。</p>
+
+    <hr class="settings-divider">
+
+    <button type="button" id="openYearChartBtn" class="btn-primary btn-block">年間収入グラフを見る</button>
+
     <div class="modal-actions">
       <button type="submit" class="btn-primary btn-block">保存して閉じる</button>
     </div>
   </form>
 </dialog>
 
-<script src="timewheel.js"></script>
+<!-- 年間収入グラフモーダル -->
+<dialog id="yearChartModal" class="modal">
+  <div class="modal-form">
+    <div class="modal-header">
+      <div class="chart-year-nav">
+        <button type="button" id="chartPrevYear" class="icon-btn" aria-label="前の年">‹</button>
+        <h2 id="chartYearLabel">2026年</h2>
+        <button type="button" id="chartNextYear" class="icon-btn" aria-label="次の年">›</button>
+      </div>
+      <button type="button" class="icon-btn" id="closeYearChart" aria-label="閉じる">✕</button>
+    </div>
+    <div id="yearChartSvgWrap"></div>
+    <div class="chart-total" id="yearChartTotal"></div>
+  </div>
+</dialog>
+
 <script src="app.js"></script>
 </body>
 </html>

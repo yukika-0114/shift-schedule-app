@@ -42,27 +42,30 @@
 html, body {
   margin: 0;
   padding: 0;
+  height: 100%;
   background: var(--bg);
   color: var(--text);
   font-family: "Hiragino Sans", "Yu Gothic UI", "Segoe UI", system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
 }
 
 #app {
   max-width: 640px;
   margin: 0 auto;
-  min-height: 100dvh;
-  padding-bottom: 90px;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
   position: relative;
 }
 
 .topbar {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: max(10px, env(safe-area-inset-top)) 8px 8px;
-  position: sticky;
-  top: 0;
   background: var(--bg);
   z-index: 10;
 }
@@ -100,6 +103,7 @@ html, body {
 }
 
 .summary {
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
@@ -122,6 +126,13 @@ html, body {
 .summary-label {
   font-size: 12px;
   color: var(--text-sub);
+}
+
+.summary-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent-actual);
+  margin-left: 6px;
 }
 
 .summary-value {
@@ -153,6 +164,7 @@ html, body {
 .limit-bar-fill.over { background: var(--danger); }
 
 .weekday-row {
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   padding: 0 8px;
@@ -165,17 +177,20 @@ html, body {
 .weekday-row .sat { color: var(--sat); }
 
 .calendar {
+  flex: 1 1 auto;
+  min-height: 0;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 4px;
-  padding: 6px 8px;
+  padding: 6px 8px calc(84px + env(safe-area-inset-bottom));
 }
 
 .day-cell {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
-  min-height: 74px;
+  min-height: 0;
+  height: 100%;
   padding: 4px 4px;
   display: flex;
   flex-direction: column;
@@ -199,7 +214,7 @@ html, body {
 }
 
 .day-num {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   align-self: flex-start;
 }
@@ -208,9 +223,9 @@ html, body {
 .day-cell.sat-col .day-num { color: var(--sat); }
 
 .day-chip {
-  font-size: 9.5px;
+  font-size: 10.5px;
   border-radius: 4px;
-  padding: 1px 3px;
+  padding: 2px 4px;
   color: #fff;
   white-space: nowrap;
   overflow: hidden;
@@ -219,7 +234,7 @@ html, body {
 
 .day-income {
   margin-top: auto;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--text-sub);
 }
@@ -301,6 +316,7 @@ dialog.modal::backdrop {
   border: 1px solid var(--border);
   background: var(--surface-2);
   color: var(--text);
+  color-scheme: light dark;
 }
 
 .field input[type="color"] {
@@ -330,6 +346,8 @@ dialog.modal::backdrop {
   padding: 10px 12px;
   font-size: 13px;
   color: var(--text);
+  white-space: pre-line;
+  line-height: 1.6;
 }
 
 .modal-actions {
@@ -439,8 +457,8 @@ dialog.modal::backdrop {
 .workplace-row-name { font-size: 14px; font-weight: 600; }
 .workplace-row-sub { font-size: 12px; color: var(--text-sub); }
 
-/* ---- wheel sections ---- */
-.wheel-section {
+/* ---- shift time sections (planned / actual) ---- */
+.time-section {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -452,128 +470,58 @@ dialog.modal::backdrop {
   padding: 12px;
 }
 
-.wheel-section-title {
+.time-section-title {
   margin: 0;
   font-size: 13px;
   font-weight: 700;
   color: var(--text-sub);
 }
 
-.calc-preview {
-  white-space: pre-line;
-  line-height: 1.6;
+/* ---- settings extras ---- */
+.settings-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 4px 0;
 }
 
-/* ---- time wheel component ---- */
-.time-wheel {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.time-wheel-labels {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.time-wheel-label-block {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.time-wheel-label-title {
-  font-size: 12px;
+.field-hint {
+  font-size: 11px;
   color: var(--text-sub);
+  margin: -6px 0 0;
 }
 
-.time-wheel-tap {
-  display: inline-flex;
+/* ---- year income chart ---- */
+.chart-year-nav {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  width: fit-content;
+  gap: 8px;
 }
 
-.time-wheel-badge {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--accent);
-  background: var(--accent-sub);
-  border-radius: 6px;
-  padding: 2px 6px;
-}
+.chart-year-nav h2 { min-width: 72px; text-align: center; }
 
-.time-wheel-time-input {
-  font: inherit;
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--text);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 4px 8px;
-  cursor: text;
-  color-scheme: light dark;
-  min-width: 0;
-}
-
-.time-wheel-time-input:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.time-wheel-dial-wrap {
-  width: 100%;
-  max-width: 300px;
-  margin: 0 auto;
-}
-
-.time-wheel-svg {
+.year-chart-svg {
   width: 100%;
   height: auto;
-  aspect-ratio: 1 / 1;
   display: block;
-  touch-action: none;
 }
 
-.time-wheel-track-bg {
-  fill: var(--surface-2);
-}
+.year-chart-bar { fill: var(--accent); }
+.year-chart-bar.current { fill: var(--accent-actual); }
 
-.time-wheel-arc {
-  opacity: 0.9;
-}
-
-.time-wheel-hour-label {
-  font-size: 11px;
+.year-chart-month-label {
+  font-size: 9px;
   fill: var(--text-sub);
 }
 
-.time-wheel-hour-icon {
-  font-size: 12px;
+.year-chart-value-label {
+  font-size: 7.5px;
+  font-weight: 600;
+  fill: var(--text-sub);
 }
 
-.time-wheel-duration {
-  font-size: 19px;
+.chart-total {
+  text-align: center;
+  font-size: 15px;
   font-weight: 700;
-  fill: var(--text);
-}
-
-.time-wheel-handle-hit {
-  fill: transparent;
-  cursor: grab;
-}
-
-.time-wheel-handle-knob {
-  stroke: var(--surface);
-  stroke-width: 4;
-  pointer-events: none;
-}
-
-.time-wheel-handle-label {
-  font-size: 11px;
-  font-weight: 700;
-  fill: #fff;
-  pointer-events: none;
+  margin-top: 4px;
 }
