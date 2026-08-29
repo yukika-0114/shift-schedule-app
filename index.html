@@ -27,6 +27,7 @@
   <div class="selection-bar" id="selectionBar" hidden>
     <button type="button" id="selectionCancelBtn" class="icon-btn icon-btn-plain" aria-label="選択を解除">✕</button>
     <span id="selectionCountLabel">1日を選択中</span>
+    <button type="button" id="selectionDeleteBtn" class="btn-danger" aria-label="選択した日のシフトを削除">削除</button>
     <button type="button" id="selectionConfirmBtn" class="btn-primary">次へ</button>
   </div>
 
@@ -81,24 +82,16 @@
     </label>
 
     <div class="time-section">
-      <h3 class="time-section-title">予定の勤務時間</h3>
+      <div class="time-section-header">
+        <h3 class="time-section-title">予定の勤務時間</h3>
+        <button type="button" id="addTimeBlockBtn" class="add-time-block-btn" aria-label="時間帯を追加">＋</button>
+      </div>
       <div id="timeBlockList"></div>
-      <button type="button" id="addTimeBlockBtn" class="btn-secondary btn-block">＋ 時間帯を追加</button>
     </div>
 
-    <div id="batchWrap">
-      <label class="field checkbox-field">
-        <input type="checkbox" id="batchToggle">
-        <span>複数の日にまとめて登録する</span>
-      </label>
-      <div class="time-section" id="batchSection" hidden>
-        <h3 class="time-section-title">対象日</h3>
-        <div class="batch-add-row">
-          <input type="date" id="batchDateInput">
-          <button type="button" id="batchAddDateBtn" class="btn-secondary">追加</button>
-        </div>
-        <div class="batch-date-list" id="batchDateList"></div>
-      </div>
+    <div class="time-section" id="batchSection" hidden>
+      <h3 class="time-section-title">対象日（まとめて登録）</h3>
+      <div class="batch-date-list" id="batchDateList"></div>
     </div>
 
     <label class="field checkbox-field" id="actualToggleWrap">
@@ -289,11 +282,13 @@
   <div class="modal-form">
     <div class="modal-header">
       <h2>時間帯プリセット</h2>
-      <button type="button" class="icon-btn" id="closePresetList" aria-label="閉じる">✕</button>
+      <div class="header-actions">
+        <button type="button" class="icon-btn" id="addPresetBtn" aria-label="プリセットを追加">＋</button>
+        <button type="button" class="icon-btn" id="closePresetList" aria-label="閉じる">✕</button>
+      </div>
     </div>
     <div class="page-main">
       <div id="presetList" class="workplace-list"></div>
-      <button type="button" id="addPresetBtn" class="btn-primary btn-block">＋ プリセットを追加</button>
     </div>
   </div>
 </dialog>

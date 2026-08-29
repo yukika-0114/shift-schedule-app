@@ -199,6 +199,18 @@ function exitSelectionMode() {
 }
 
 document.getElementById('selectionCancelBtn').addEventListener('click', exitSelectionMode);
+document.getElementById('selectionDeleteBtn').addEventListener('click', () => {
+  const dates = [...selectedDates];
+  const count = state.shifts.filter(s => dates.includes(s.date)).length;
+  const msg = count > 0
+    ? `選択した${dates.length}日分のシフト（${count}件）を削除しますか？`
+    : `選択した${dates.length}日にはシフトがありません。選択を解除しますか？`;
+  if (!confirm(msg)) return;
+  state.shifts = state.shifts.filter(s => !dates.includes(s.date));
+  saveState();
+  exitSelectionMode();
+  renderSummary();
+});
 document.getElementById('selectionConfirmBtn').addEventListener('click', () => {
   const dates = [...selectedDates].sort();
   exitSelectionMode();
@@ -484,10 +496,7 @@ const actualStartInput = document.getElementById('actualStart');
 const actualEndInput = document.getElementById('actualEnd');
 const actualBreakInput = document.getElementById('actualBreak');
 const actualToggleWrap = document.getElementById('actualToggleWrap');
-const batchWrap = document.getElementById('batchWrap');
-const batchToggleInput = document.getElementById('batchToggle');
 const batchSection = document.getElementById('batchSection');
-const batchDateInput = document.getElementById('batchDateInput');
 const batchDateList = document.getElementById('batchDateList');
 let batchDates = [];
 
@@ -495,13 +504,6 @@ selectOnFocus(actualBreakInput);
 
 function renderBatchDateList() {
   batchDateList.innerHTML = '';
-  if (batchDates.length === 0) {
-    const hint = document.createElement('div');
-    hint.className = 'empty-hint';
-    hint.textContent = '追加日はまだありません';
-    batchDateList.appendChild(hint);
-    return;
-  }
   batchDates.slice().sort().forEach(d => {
     const chip = document.createElement('span');
     chip.className = 'batch-date-chip';
@@ -513,22 +515,16 @@ function renderBatchDateList() {
     rm.addEventListener('click', () => {
       batchDates = batchDates.filter(x => x !== d);
       renderBatchDateList();
+      batchSection.hidden = batchDates.length === 0;
+      updateActualToggleVisibility();
     });
     chip.appendChild(rm);
     batchDateList.appendChild(chip);
   });
 }
 
-document.getElementById('batchAddDateBtn').addEventListener('click', () => {
-  const val = batchDateInput.value;
-  if (!val || val === currentDayKey || batchDates.includes(val)) { batchDateInput.value = ''; return; }
-  batchDates.push(val);
-  batchDateInput.value = '';
-  renderBatchDateList();
-});
-
 function updateActualToggleVisibility() {
-  const hide = getTimeBlocks().length > 1 || batchToggleInput.checked;
+  const hide = getTimeBlocks().length > 1 || batchDates.length > 0;
   actualToggleWrap.hidden = hide;
   if (hide && actualToggleInput.checked) {
     actualToggleInput.checked = false;
@@ -536,25 +532,30 @@ function updateActualToggleVisibility() {
   }
 }
 
-batchToggleInput.addEventListener('change', () => {
-  batchSection.hidden = !batchToggleInput.checked;
-  updateActualToggleVisibility();
-  updateShiftCalcPreview();
-});
-
-// ---- time blocks (the "＋ 時間帯を追加" repeatable start/end/break rows) ----
-function populatePresetSelect(selectEl) {
-  selectEl.innerHTML = '<option value="">プリセットから選択</option>';
+// ---- time blocks (the "＋" repeatable start/end/break rows) ----
+function buildPresetChipList(row) {
+  const startInput = row.querySelector('.tb-start');
+  const endInput = row.querySelector('.tb-end');
+  const breakInput = row.querySelector('.tb-break');
+  const chipsWrap = row.querySelector('.tb-preset-chips');
+  chipsWrap.innerHTML = '';
   state.timePresets.forEach(p => {
-    const opt = document.createElement('option');
-    opt.value = p.id;
-    opt.textContent = (p.label ? p.label + '　' : '') + `${p.start}-${p.end}`;
-    selectEl.appendChild(opt);
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'tb-preset-chip';
+    chip.textContent = (p.label ? p.label + '　' : '') + `${p.start}-${p.end}`;
+    chip.addEventListener('click', () => {
+      startInput.value = p.start;
+      endInput.value = p.end;
+      breakInput.value = p.breakMin;
+      updateShiftCalcPreview();
+    });
+    chipsWrap.appendChild(chip);
   });
 }
 
-function refreshAllPresetSelects() {
-  document.querySelectorAll('.tb-preset-select').forEach(populatePresetSelect);
+function refreshAllPresetChipLists() {
+  timeBlockList.querySelectorAll('.time-block-row').forEach(buildPresetChipList);
 }
 
 function updateTimeBlockRemoveButtons() {
@@ -569,10 +570,9 @@ function createTimeBlockRow(data) {
   const row = document.createElement('div');
   row.className = 'time-block-row';
 
-  const presetSelect = document.createElement('select');
-  presetSelect.className = 'tb-preset-select';
-  populatePresetSelect(presetSelect);
-  row.appendChild(presetSelect);
+  const presetChips = document.createElement('div');
+  presetChips.className = 'tb-preset-chips';
+  row.appendChild(presetChips);
 
   const fieldRow = document.createElement('div');
   fieldRow.className = 'field-row';
@@ -632,21 +632,12 @@ function createTimeBlockRow(data) {
   });
   row.appendChild(removeBtn);
 
-  presetSelect.addEventListener('change', () => {
-    const preset = state.timePresets.find(p => p.id === presetSelect.value);
-    if (preset) {
-      startInput.value = preset.start;
-      endInput.value = preset.end;
-      breakInput.value = preset.breakMin;
-      updateShiftCalcPreview();
-    }
-    presetSelect.value = '';
-  });
-
   [startInput, endInput, breakInput].forEach(el => {
     el.addEventListener('input', updateShiftCalcPreview);
     el.addEventListener('change', updateShiftCalcPreview);
   });
+
+  buildPresetChipList(row);
 
   return row;
 }
@@ -703,10 +694,8 @@ function openShiftModal(shiftId, presetBatchDates) {
   editingShiftId = shiftId;
   populateWorkplaceSelect();
   batchDates = [];
-  batchToggleInput.checked = false;
   batchSection.hidden = true;
   renderBatchDateList();
-  batchWrap.hidden = !!shiftId;
 
   if (shiftId) {
     const s = state.shifts.find(x => x.id === shiftId);
@@ -735,7 +724,6 @@ function openShiftModal(shiftId, presetBatchDates) {
 
     if (presetBatchDates && presetBatchDates.length > 0) {
       batchDates = presetBatchDates.slice();
-      batchToggleInput.checked = true;
       batchSection.hidden = false;
       renderBatchDateList();
     }
@@ -794,7 +782,7 @@ function saveShiftForm() {
       delete s.actualBreakMin;
     }
   } else {
-    const targetDates = batchToggleInput.checked && batchDates.length > 0
+    const targetDates = batchDates.length > 0
       ? [currentDayKey, ...batchDates]
       : [currentDayKey];
     const hasActual = blocks.length === 1 && actualToggleInput.checked;
@@ -1038,7 +1026,7 @@ presetEditModal.querySelector('form').addEventListener('submit', (e) => {
   saveState();
   presetEditModal.close();
   presetListModal.close();
-  refreshAllPresetSelects();
+  refreshAllPresetChipLists();
 });
 
 deletePresetBtn.addEventListener('click', () => {
@@ -1048,7 +1036,7 @@ deletePresetBtn.addEventListener('click', () => {
   saveState();
   presetEditModal.close();
   presetListModal.close();
-  refreshAllPresetSelects();
+  refreshAllPresetChipLists();
 });
 
 // ---- shared year-chart rendering (used by 年間収入) ----

@@ -269,13 +269,18 @@ html, body {
 .selection-bar #selectionCountLabel {
   flex: 1;
   text-align: center;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
 }
 
-.selection-bar .btn-primary {
+.selection-bar .btn-primary,
+.selection-bar .btn-danger {
   flex: 0 0 auto;
-  padding: 8px 18px;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.selection-bar .btn-primary {
   background: var(--accent-actual);
 }
 
@@ -467,21 +472,6 @@ dialog.modal.modal-page .modal-form {
 
 .btn-block { width: 100%; }
 
-.batch-add-row {
-  display: flex;
-  gap: 8px;
-}
-
-.batch-add-row input[type="date"] {
-  flex: 1;
-  min-width: 0;
-}
-
-.batch-add-row .btn-secondary {
-  flex: 0 0 auto;
-  padding: 10px 16px;
-}
-
 .batch-date-list {
   display: flex;
   flex-wrap: wrap;
@@ -607,6 +597,32 @@ dialog.modal.modal-page .modal-form {
   color: var(--text-sub);
 }
 
+.time-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.add-time-block-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  flex: 0 0 auto;
+  padding: 0;
+}
+
+.add-time-block-btn:active { opacity: 0.8; }
+
 .time-block-row {
   display: flex;
   flex-direction: column;
@@ -619,6 +635,26 @@ dialog.modal.modal-page .modal-form {
 
 .time-block-row .field-row { margin: 0; }
 
+.tb-preset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tb-preset-chip {
+  background: var(--accent-sub);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tb-preset-chip:active { opacity: 0.7; }
+
 .tb-remove-btn {
   align-self: flex-end;
   background: none;
@@ -628,6 +664,12 @@ dialog.modal.modal-page .modal-form {
   font-weight: 600;
   cursor: pointer;
   padding: 4px 2px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* ---- settings menu ---- */
