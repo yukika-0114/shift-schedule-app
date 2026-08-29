@@ -627,8 +627,9 @@ yearLimitPresetSel.addEventListener('change', () => {
   }
 });
 
-yearLimitModal.querySelector('form').addEventListener('submit', (e) => {
-  e.preventDefault();
+document.getElementById('closeYearLimit').addEventListener('click', () => yearLimitModal.close());
+
+document.getElementById('saveYearLimitBtn').addEventListener('click', () => {
   state.settings.yearLimitEnabled = yearLimitEnabledInput.checked;
   state.settings.yearLimitValue = Number(yearLimitValueInput.value) || 0;
   saveState();

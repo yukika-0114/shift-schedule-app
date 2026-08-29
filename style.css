@@ -88,6 +88,11 @@ html, body {
 
 .icon-btn:active { transform: scale(0.94); }
 
+.icon-btn.icon-btn-plain {
+  background: none;
+  border: none;
+}
+
 .nav-arrow-btn {
   background: none;
   border: none;
@@ -337,11 +342,6 @@ dialog.modal.modal-page .modal-form {
   margin: 0;
 }
 
-/* header row with only a close button (content title lives in .center-nav) */
-.modal-header:has(> .icon-btn:only-child) {
-  justify-content: flex-end;
-}
-
 .field {
   display: flex;
   flex-direction: column;
@@ -553,6 +553,7 @@ dialog.modal.modal-page .modal-form {
 
 /* ---- centered prev/next navigation (used by monthly report & year chart) ---- */
 .center-nav {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -560,11 +561,22 @@ dialog.modal.modal-page .modal-form {
   touch-action: pan-y;
 }
 
-.center-nav h2 {
+.center-nav-value {
   flex: 1;
   text-align: center;
-  margin: 0;
   font-size: 17px;
+  font-weight: 700;
+}
+
+/* main content of a full-page settings screen, centered in the
+   leftover vertical space between the header/nav and the save button */
+.page-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
 }
 
 .report-stats {

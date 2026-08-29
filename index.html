@@ -15,13 +15,13 @@
 <div id="app">
 
   <header class="topbar">
-    <button id="btnWorkplaces" class="icon-btn" aria-label="職場を管理">🏢</button>
+    <button id="btnWorkplaces" class="icon-btn icon-btn-plain" aria-label="職場を管理">🏢</button>
     <div class="month-nav">
       <button id="prevMonth" class="nav-arrow-btn" aria-label="前の月">‹</button>
       <button id="monthLabel" class="month-label" aria-label="今月へ">2026年1月</button>
       <button id="nextMonth" class="nav-arrow-btn" aria-label="次の月">›</button>
     </div>
-    <button id="btnSettings" class="icon-btn" aria-label="設定">⚙️</button>
+    <button id="btnSettings" class="icon-btn icon-btn-plain" aria-label="設定">⚙️</button>
   </header>
 
   <section class="summary" id="summary">
@@ -194,72 +194,77 @@
 
 <!-- 年間収入（上限額の設定） -->
 <dialog id="yearLimitModal" class="modal modal-page">
-  <form method="dialog" class="modal-form">
+  <div class="modal-form">
     <div class="modal-header">
       <h2>年間収入</h2>
-      <button type="submit" class="icon-btn" aria-label="閉じる">✕</button>
+      <button type="button" class="icon-btn" id="closeYearLimit" aria-label="閉じる">✕</button>
     </div>
 
-    <label class="field checkbox-field">
-      <input type="checkbox" id="yearLimitEnabled">
-      <span>年間収入の上限を管理する（103万の壁など）</span>
-    </label>
+    <div class="page-main">
+      <label class="field checkbox-field">
+        <input type="checkbox" id="yearLimitEnabled">
+        <span>年間収入の上限を管理する（103万の壁など）</span>
+      </label>
 
-    <label class="field">
-      <span>上限額のプリセット</span>
-      <select id="yearLimitPreset">
-        <option value="">選択してください</option>
-        <option value="1030000">103万円（所得税の壁）</option>
-        <option value="1060000">106万円（社会保険の壁）</option>
-        <option value="1300000">130万円（社会保険の壁）</option>
-        <option value="1500000">150万円（配偶者特別控除の壁）</option>
-        <option value="custom">カスタム</option>
-      </select>
-    </label>
+      <label class="field">
+        <span>上限額のプリセット</span>
+        <select id="yearLimitPreset">
+          <option value="">選択してください</option>
+          <option value="1030000">103万円（所得税の壁）</option>
+          <option value="1060000">106万円（社会保険の壁）</option>
+          <option value="1300000">130万円（社会保険の壁）</option>
+          <option value="1500000">150万円（配偶者特別控除の壁）</option>
+          <option value="custom">カスタム</option>
+        </select>
+      </label>
 
-    <label class="field">
-      <span>年間上限額（円）</span>
-      <input type="number" id="yearLimitValue" min="0" step="1000">
-    </label>
+      <label class="field">
+        <span>年間上限額（円）</span>
+        <input type="number" id="yearLimitValue" min="0" step="1000">
+      </label>
+    </div>
 
     <div class="modal-actions">
-      <button type="submit" class="btn-primary btn-block">保存して閉じる</button>
+      <button type="button" id="saveYearLimitBtn" class="btn-primary btn-block">保存</button>
     </div>
-  </form>
+  </div>
 </dialog>
 
 <!-- 月次レポート -->
 <dialog id="monthlyReportModal" class="modal modal-page">
   <div class="modal-form">
     <div class="modal-header">
+      <h2>月次レポート</h2>
       <button type="button" class="icon-btn" id="closeMonthlyReport" aria-label="閉じる">✕</button>
     </div>
     <div class="center-nav">
       <button type="button" id="reportPrevMonth" class="nav-arrow-btn" aria-label="前の月">‹</button>
-      <h2 id="reportMonthLabel">2026年8月</h2>
+      <span class="center-nav-value" id="reportMonthLabel">2026年8月</span>
       <button type="button" id="reportNextMonth" class="nav-arrow-btn" aria-label="次の月">›</button>
     </div>
 
-    <div class="report-stats">
-      <div class="report-stat-row">
-        <span>勤務日数</span>
-        <span id="reportWorkDays">0日</span>
+    <div class="page-main">
+      <div class="report-stats">
+        <div class="report-stat-row">
+          <span>勤務日数</span>
+          <span id="reportWorkDays">0日</span>
+        </div>
+        <div class="report-stat-row">
+          <span>勤務時間</span>
+          <span id="reportWorkHours">0.0h</span>
+        </div>
+        <div class="report-stat-row">
+          <span>予想収入</span>
+          <span id="reportPredictedIncome">¥0</span>
+        </div>
       </div>
-      <div class="report-stat-row">
-        <span>勤務時間</span>
-        <span id="reportWorkHours">0.0h</span>
-      </div>
-      <div class="report-stat-row">
-        <span>予想収入</span>
-        <span id="reportPredictedIncome">¥0</span>
-      </div>
-    </div>
 
-    <label class="field">
-      <span>実際の収入（任意）</span>
-      <input type="number" id="reportActualIncomeInput" min="0" step="1" placeholder="例：120000">
-    </label>
-    <p class="field-hint">入力すると、この月は実績収入として優先表示されます。空欄に戻すと自動計算に戻ります。</p>
+      <label class="field">
+        <span>実際の収入（任意）</span>
+        <input type="number" id="reportActualIncomeInput" min="0" step="1" placeholder="例：120000">
+      </label>
+      <p class="field-hint">入力すると、この月は実績収入として優先表示されます。空欄に戻すと自動計算に戻ります。</p>
+    </div>
 
     <div class="modal-actions">
       <button type="button" id="saveReportBtn" class="btn-primary btn-block">保存</button>
@@ -271,15 +276,18 @@
 <dialog id="yearChartModal" class="modal modal-page">
   <div class="modal-form">
     <div class="modal-header">
+      <h2>年間収入グラフ</h2>
       <button type="button" class="icon-btn" id="closeYearChart" aria-label="閉じる">✕</button>
     </div>
     <div class="center-nav">
       <button type="button" id="chartPrevYear" class="nav-arrow-btn" aria-label="前の年">‹</button>
-      <h2 id="chartYearLabel">2026年</h2>
+      <span class="center-nav-value" id="chartYearLabel">2026年</span>
       <button type="button" id="chartNextYear" class="nav-arrow-btn" aria-label="次の年">›</button>
     </div>
-    <div id="yearChartSvgWrap"></div>
-    <div class="chart-total" id="yearChartTotal"></div>
+    <div class="page-main">
+      <div id="yearChartSvgWrap"></div>
+      <div class="chart-total" id="yearChartTotal"></div>
+    </div>
   </div>
 </dialog>
 
