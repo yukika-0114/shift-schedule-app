@@ -607,17 +607,56 @@ document.getElementById('btnSettings').addEventListener('click', () => {
   settingsModal.showModal();
 });
 
+// ---- shared year-chart rendering (used by 年間収入 and 年間収入グラフ) ----
+function computeYearlyValues(year) {
+  const values = [];
+  for (let m = 0; m < 12; m++) values.push(monthlyIncomeFor(year, m));
+  return values;
+}
+
+function buildYearChartSvg(year, values) {
+  const max = Math.max(1, ...values);
+  const width = 320, height = 210, padTop = 20, padBottom = 26, barGap = 6;
+  const barWidth = (width - barGap * 13) / 12;
+
+  let bars = '';
+  values.forEach((v, i) => {
+    const h = max > 0 ? (v / max) * (height - padTop - padBottom) : 0;
+    const x = barGap + i * (barWidth + barGap);
+    const y = height - padBottom - h;
+    const isCurrent = year === viewYear && i === viewMonth;
+    bars += `<rect x="${x}" y="${y}" width="${barWidth}" height="${Math.max(h, 1)}" rx="3" class="year-chart-bar${isCurrent ? ' current' : ''}"></rect>`;
+    if (v > 0) {
+      const labelY = Math.max(padTop - 4, y - 4);
+      bars += `<text x="${x + barWidth / 2}" y="${labelY}" text-anchor="middle" class="year-chart-value-label">${(v / 10000).toFixed(1)}万</text>`;
+    }
+    bars += `<text x="${x + barWidth / 2}" y="${height - padBottom + 16}" text-anchor="middle" class="year-chart-month-label">${i + 1}</text>`;
+  });
+
+  return `<svg viewBox="0 0 ${width} ${height}" class="year-chart-svg">${bars}</svg>`;
+}
+
 // ---- 年間収入（上限額の設定） ----
 const yearLimitModal = document.getElementById('yearLimitModal');
 const yearLimitEnabledInput = document.getElementById('yearLimitEnabled');
 const yearLimitPresetSel = document.getElementById('yearLimitPreset');
 const yearLimitValueInput = document.getElementById('yearLimitValue');
+const yearLimitChartWrap = document.getElementById('yearLimitChartWrap');
+const yearLimitAvgIncome = document.getElementById('yearLimitAvgIncome');
+
+function renderYearLimitChart() {
+  const values = computeYearlyValues(viewYear);
+  yearLimitChartWrap.innerHTML = buildYearChartSvg(viewYear, values);
+  const total = values.reduce((a, b) => a + b, 0);
+  yearLimitAvgIncome.textContent = `平均月収：${fmtYen(total / 12)}`;
+}
 
 document.getElementById('openYearLimitBtn').addEventListener('click', () => {
   yearLimitEnabledInput.checked = state.settings.yearLimitEnabled;
   yearLimitValueInput.value = state.settings.yearLimitValue || '';
   const presetMatch = Array.from(yearLimitPresetSel.options).find(o => Number(o.value) === state.settings.yearLimitValue);
   yearLimitPresetSel.value = presetMatch ? presetMatch.value : (state.settings.yearLimitValue ? 'custom' : '');
+  renderYearLimitChart();
   yearLimitModal.showModal();
 });
 
@@ -704,28 +743,8 @@ const yearChartTotal = document.getElementById('yearChartTotal');
 
 function renderYearChart() {
   chartYearLabel.textContent = `${chartYear}年`;
-  const values = [];
-  for (let m = 0; m < 12; m++) values.push(monthlyIncomeFor(chartYear, m));
-  const max = Math.max(1, ...values);
-
-  const width = 320, height = 210, padTop = 20, padBottom = 26, barGap = 6;
-  const barWidth = (width - barGap * 13) / 12;
-
-  let bars = '';
-  values.forEach((v, i) => {
-    const h = max > 0 ? (v / max) * (height - padTop - padBottom) : 0;
-    const x = barGap + i * (barWidth + barGap);
-    const y = height - padBottom - h;
-    const isCurrent = chartYear === viewYear && i === viewMonth;
-    bars += `<rect x="${x}" y="${y}" width="${barWidth}" height="${Math.max(h, 1)}" rx="3" class="year-chart-bar${isCurrent ? ' current' : ''}"></rect>`;
-    if (v > 0) {
-      const labelY = Math.max(padTop - 4, y - 4);
-      bars += `<text x="${x + barWidth / 2}" y="${labelY}" text-anchor="middle" class="year-chart-value-label">${(v / 10000).toFixed(1)}万</text>`;
-    }
-    bars += `<text x="${x + barWidth / 2}" y="${height - padBottom + 16}" text-anchor="middle" class="year-chart-month-label">${i + 1}</text>`;
-  });
-
-  yearChartSvgWrap.innerHTML = `<svg viewBox="0 0 ${width} ${height}" class="year-chart-svg">${bars}</svg>`;
+  const values = computeYearlyValues(chartYear);
+  yearChartSvgWrap.innerHTML = buildYearChartSvg(chartYear, values);
   const total = values.reduce((a, b) => a + b, 0);
   yearChartTotal.textContent = `年間合計：${fmtYen(total)}`;
 }
