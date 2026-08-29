@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4f46e5">
+<meta name="description" content="勤務スケジュールと予想収入を管理するPWA">
+<title>シフト管理・収入予測</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <header class="topbar">
+    <button id="btnWorkplaces" class="icon-btn" aria-label="職場を管理">🏢</button>
+    <div class="month-nav">
+      <button id="prevMonth" class="icon-btn" aria-label="前の月">‹</button>
+      <button id="monthLabel" class="month-label" aria-label="今月へ">2026年1月</button>
+      <button id="nextMonth" class="icon-btn" aria-label="次の月">›</button>
+    </div>
+    <button id="btnSettings" class="icon-btn" aria-label="設定">⚙️</button>
+  </header>
+
+  <section class="summary" id="summary">
+    <div class="summary-card">
+      <span class="summary-label">今月の予想収入</span>
+      <span class="summary-value" id="monthIncome">¥0</span>
+    </div>
+    <div class="summary-card">
+      <span class="summary-label">今月の勤務時間</span>
+      <span class="summary-value" id="monthHours">0.0h</span>
+    </div>
+    <div class="summary-card" id="yearLimitCard" hidden>
+      <span class="summary-label">年間累計（<span id="yearLimitYear"></span>年）</span>
+      <span class="summary-value" id="yearIncome">¥0</span>
+      <div class="limit-bar"><div class="limit-bar-fill" id="limitBarFill"></div></div>
+      <span class="summary-sub" id="limitSub"></span>
+    </div>
+  </section>
+
+  <div class="weekday-row">
+    <span class="sun">日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span class="sat">土</span>
+  </div>
+  <div class="calendar" id="calendar"></div>
+
+  <button id="fab" class="fab" aria-label="予定を追加">＋</button>
+</div>
+
+<!-- 日詳細モーダル -->
+<dialog id="dayModal" class="modal">
+  <form method="dialog" class="modal-form">
+    <div class="modal-header">
+      <h2 id="dayModalTitle">日付</h2>
+      <button type="submit" class="icon-btn" aria-label="閉じる">✕</button>
+    </div>
+    <div id="dayShiftList" class="shift-list"></div>
+    <button type="button" id="addShiftBtn" class="btn-primary btn-block">＋ シフトを追加</button>
+  </form>
+</dialog>
+
+<!-- シフト編集モーダル -->
+<dialog id="shiftModal" class="modal">
+  <form method="dialog" class="modal-form" id="shiftForm">
+    <div class="modal-header">
+      <h2 id="shiftModalTitle">シフトを追加</h2>
+      <button type="button" class="icon-btn" id="closeShiftModal" aria-label="閉じる">✕</button>
+    </div>
+
+    <label class="field">
+      <span>職場</span>
+      <select id="shiftWorkplace" required></select>
+    </label>
+
+    <div class="wheel-section">
+      <h3 class="wheel-section-title">予定の勤務時間</h3>
+      <div id="plannedWheel" class="time-wheel-mount"></div>
+    </div>
+
+    <label class="field">
+      <span>休憩（分・予定）</span>
+      <input type="number" id="shiftBreak" min="0" step="5" value="0">
+    </label>
+
+    <label class="field checkbox-field">
+      <input type="checkbox" id="actualToggle">
+      <span>実際の勤務時間を記録する</span>
+    </label>
+
+    <div class="wheel-section actual-section" id="actualSection" hidden>
+      <h3 class="wheel-section-title">実際の勤務時間</h3>
+      <div id="actualWheel" class="time-wheel-mount"></div>
+      <label class="field">
+        <span>休憩（分・実績）</span>
+        <input type="number" id="actualBreak" min="0" step="5" value="0">
+      </label>
+    </div>
+
+    <label class="field">
+      <span>メモ（任意）</span>
+      <input type="text" id="shiftMemo" placeholder="例：早番、研修 など">
+    </label>
+
+    <div class="calc-preview" id="shiftCalcPreview"></div>
+
+    <div class="modal-actions">
+      <button type="button" id="deleteShiftBtn" class="btn-danger" hidden>削除</button>
+      <button type="submit" id="saveShiftBtn" class="btn-primary">保存</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 職場管理モーダル -->
+<dialog id="workplaceModal" class="modal">
+  <form method="dialog" class="modal-form">
+    <div class="modal-header">
+      <h2>職場を管理</h2>
+      <button type="submit" class="icon-btn" aria-label="閉じる">✕</button>
+    </div>
+    <div id="workplaceList" class="workplace-list"></div>
+    <button type="button" id="addWorkplaceBtn" class="btn-primary btn-block">＋ 職場を追加</button>
+  </form>
+</dialog>
+
+<!-- 職場編集モーダル -->
+<dialog id="workplaceEditModal" class="modal">
+  <form method="dialog" class="modal-form">
+    <div class="modal-header">
+      <h2 id="workplaceEditTitle">職場を追加</h2>
+      <button type="button" class="icon-btn" id="closeWorkplaceEditModal" aria-label="閉じる">✕</button>
+    </div>
+    <label class="field">
+      <span>職場名</span>
+      <input type="text" id="workplaceName" required placeholder="例：コンビニA">
+    </label>
+    <label class="field">
+      <span>時給（円）</span>
+      <input type="number" id="workplaceWage" required min="0" step="1" placeholder="例：1100">
+    </label>
+    <label class="field">
+      <span>色</span>
+      <input type="color" id="workplaceColor" value="#4f46e5">
+    </label>
+    <div class="modal-actions">
+      <button type="button" id="deleteWorkplaceBtn" class="btn-danger" hidden>削除</button>
+      <button type="submit" id="saveWorkplaceBtn" class="btn-primary">保存</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 設定モーダル -->
+<dialog id="settingsModal" class="modal">
+  <form method="dialog" class="modal-form">
+    <div class="modal-header">
+      <h2>設定</h2>
+      <button type="submit" class="icon-btn" aria-label="閉じる">✕</button>
+    </div>
+
+    <label class="field checkbox-field">
+      <input type="checkbox" id="yearLimitEnabled">
+      <span>年間収入の上限を管理する（103万の壁など）</span>
+    </label>
+
+    <label class="field">
+      <span>上限額のプリセット</span>
+      <select id="yearLimitPreset">
+        <option value="">選択してください</option>
+        <option value="1030000">103万円（所得税の壁）</option>
+        <option value="1060000">106万円（社会保険の壁）</option>
+        <option value="1300000">130万円（社会保険の壁）</option>
+        <option value="1500000">150万円（配偶者特別控除の壁）</option>
+        <option value="custom">カスタム</option>
+      </select>
+    </label>
+
+    <label class="field">
+      <span>年間上限額（円）</span>
+      <input type="number" id="yearLimitValue" min="0" step="1000">
+    </label>
+
+    <div class="modal-actions">
+      <button type="submit" class="btn-primary btn-block">保存して閉じる</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="timewheel.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
