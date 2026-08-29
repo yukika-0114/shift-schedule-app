@@ -666,20 +666,24 @@ dialog.modal.modal-page .modal-form {
   padding: 4px 2px;
 }
 
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+/* floating circular add button, anchored to the bottom of a full-page screen */
+.page-fab {
+  position: fixed;
+  right: max(20px, calc(50% - 320px + 20px));
+  bottom: max(20px, env(safe-area-inset-bottom));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 26px;
+  border: none;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  z-index: 20;
 }
 
-.header-actions.header-actions-stacked {
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.modal-header:has(.header-actions-stacked) {
-  align-items: flex-start;
-}
+.page-fab:active { transform: scale(0.95); }
 
 /* ---- settings menu ---- */
 .settings-menu {
@@ -745,6 +749,7 @@ dialog.modal.modal-page .modal-form {
 /* a plain top-to-bottom list instead of a vertically centered block */
 .page-main.list-style {
   justify-content: flex-start;
+  padding-bottom: 76px; /* keep content clear of the floating add button */
 }
 
 .report-stats {
@@ -767,6 +772,9 @@ dialog.modal.modal-page .modal-form {
   font-weight: 700;
   font-size: 16px;
 }
+
+.report-stat-row span:last-child.diff-positive { color: var(--accent-actual); }
+.report-stat-row span:last-child.diff-negative { color: var(--danger); }
 
 /* ---- year income chart ---- */
 .year-chart-svg {

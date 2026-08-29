@@ -255,8 +255,16 @@
           <span id="reportWorkDays">0日</span>
         </div>
         <div class="report-stat-row">
+          <span>予定勤務時間</span>
+          <span id="reportPlannedHours">0.0h</span>
+        </div>
+        <div class="report-stat-row">
           <span>勤務時間</span>
           <span id="reportWorkHours">0.0h</span>
+        </div>
+        <div class="report-stat-row">
+          <span>勤務時間差異</span>
+          <span id="reportHoursDiff">0.0h</span>
         </div>
         <div class="report-stat-row">
           <span>収入見込み</span>
@@ -282,14 +290,12 @@
   <div class="modal-form">
     <div class="modal-header">
       <h2>時間帯プリセット</h2>
-      <div class="header-actions header-actions-stacked">
-        <button type="button" class="icon-btn" id="closePresetList" aria-label="閉じる">✕</button>
-        <button type="button" class="icon-btn" id="addPresetBtn" aria-label="プリセットを追加">＋</button>
-      </div>
+      <button type="button" class="icon-btn" id="closePresetList" aria-label="閉じる">✕</button>
     </div>
     <div class="page-main list-style">
       <div id="presetList" class="workplace-list"></div>
     </div>
+    <button type="button" id="addPresetBtn" class="page-fab" aria-label="プリセットを追加">＋</button>
   </div>
 </dialog>
 

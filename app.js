@@ -1114,7 +1114,9 @@ document.getElementById('saveYearLimitBtn').addEventListener('click', () => {
 const monthlyReportModal = document.getElementById('monthlyReportModal');
 const reportMonthLabel = document.getElementById('reportMonthLabel');
 const reportWorkDaysEl = document.getElementById('reportWorkDays');
+const reportPlannedHoursEl = document.getElementById('reportPlannedHours');
 const reportWorkHoursEl = document.getElementById('reportWorkHours');
+const reportHoursDiffEl = document.getElementById('reportHoursDiff');
 const reportPredictedIncomeEl = document.getElementById('reportPredictedIncome');
 const reportActualIncomeInput = document.getElementById('reportActualIncomeInput');
 let reportYear = viewYear;
@@ -1126,9 +1128,20 @@ function renderMonthlyReport() {
   reportMonthLabel.textContent = `${reportYear}年${reportMonth + 1}月`;
   const shifts = shiftsForMonth(reportYear, reportMonth);
   const workDays = new Set(shifts.map(s => s.date)).size;
+  // 予定勤務時間: always the scheduled start/end, regardless of any actual record.
+  const plannedHours = shifts.reduce((sum, s) => sum + shiftDurationHours(s.start, s.end, s.breakMin), 0);
+  // 勤務時間: the actual record when present, otherwise the plan (same as everywhere else in the app).
   const workHours = shifts.reduce((sum, s) => sum + effectiveShiftHours(s), 0);
+  const hoursDiff = workHours - plannedHours;
+
   reportWorkDaysEl.textContent = `${workDays}日`;
+  reportPlannedHoursEl.textContent = fmtHours(plannedHours);
   reportWorkHoursEl.textContent = fmtHours(workHours);
+  reportHoursDiffEl.textContent = (hoursDiff >= 0 ? '+' : '') + hoursDiff.toFixed(1) + 'h';
+  reportHoursDiffEl.classList.remove('diff-positive', 'diff-negative');
+  if (hoursDiff > 0.05) reportHoursDiffEl.classList.add('diff-positive');
+  else if (hoursDiff < -0.05) reportHoursDiffEl.classList.add('diff-negative');
+
   reportPredictedIncomeEl.textContent = fmtYen(calculatedMonthIncome(reportYear, reportMonth));
   const key = monthKeyFor(reportYear, reportMonth);
   reportActualIncomeInput.value = state.actualMonthlyIncome[key] != null ? state.actualMonthlyIncome[key] : '';
