@@ -88,6 +88,23 @@ html, body {
 
 .icon-btn:active { transform: scale(0.94); }
 
+.nav-arrow-btn {
+  background: none;
+  border: none;
+  width: 40px;
+  height: 40px;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  cursor: pointer;
+  touch-action: manipulation;
+  flex: 0 0 auto;
+}
+
+.nav-arrow-btn:active { opacity: 0.5; }
+
 .month-nav {
   display: flex;
   align-items: center;
@@ -249,6 +266,7 @@ html, body {
 }
 
 /* ---- modals ---- */
+/* default: bottom sheet on mobile, centered card on wide screens */
 dialog.modal {
   border: none;
   border-radius: var(--radius) var(--radius) 0 0;
@@ -262,7 +280,7 @@ dialog.modal {
 }
 
 @media (min-width: 660px) {
-  dialog.modal {
+  dialog.modal:not(.modal-page) {
     border-radius: var(--radius);
     margin: auto;
   }
@@ -270,6 +288,32 @@ dialog.modal {
 
 dialog.modal::backdrop {
   background: rgba(10, 10, 20, 0.5);
+}
+
+/* centered popup card (e.g. the settings entry menu) */
+dialog.modal.modal-center {
+  border-radius: var(--radius);
+  width: calc(100% - 32px);
+  max-width: 420px;
+  margin: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* full-screen page takeover (settings sub-screens) */
+dialog.modal.modal-page {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  border-radius: 0;
+  margin: 0;
+  box-shadow: none;
+}
+
+dialog.modal.modal-page .modal-form {
+  max-height: none;
+  height: 100%;
+  padding-top: max(16px, env(safe-area-inset-top));
 }
 
 .modal-form {

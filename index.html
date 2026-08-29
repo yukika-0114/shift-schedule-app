@@ -17,9 +17,9 @@
   <header class="topbar">
     <button id="btnWorkplaces" class="icon-btn" aria-label="職場を管理">🏢</button>
     <div class="month-nav">
-      <button id="prevMonth" class="icon-btn" aria-label="前の月">‹</button>
+      <button id="prevMonth" class="nav-arrow-btn" aria-label="前の月">‹</button>
       <button id="monthLabel" class="month-label" aria-label="今月へ">2026年1月</button>
-      <button id="nextMonth" class="icon-btn" aria-label="次の月">›</button>
+      <button id="nextMonth" class="nav-arrow-btn" aria-label="次の月">›</button>
     </div>
     <button id="btnSettings" class="icon-btn" aria-label="設定">⚙️</button>
   </header>
@@ -169,7 +169,7 @@
 </dialog>
 
 <!-- 設定メニュー（項目一覧） -->
-<dialog id="settingsModal" class="modal">
+<dialog id="settingsModal" class="modal modal-center">
   <form method="dialog" class="modal-form">
     <div class="modal-header">
       <h2>設定</h2>
@@ -193,7 +193,7 @@
 </dialog>
 
 <!-- 年間収入（上限額の設定） -->
-<dialog id="yearLimitModal" class="modal">
+<dialog id="yearLimitModal" class="modal modal-page">
   <form method="dialog" class="modal-form">
     <div class="modal-header">
       <h2>年間収入</h2>
@@ -229,15 +229,15 @@
 </dialog>
 
 <!-- 月次レポート -->
-<dialog id="monthlyReportModal" class="modal">
+<dialog id="monthlyReportModal" class="modal modal-page">
   <div class="modal-form">
     <div class="modal-header">
       <button type="button" class="icon-btn" id="closeMonthlyReport" aria-label="閉じる">✕</button>
     </div>
     <div class="center-nav">
-      <button type="button" id="reportPrevMonth" class="icon-btn" aria-label="前の月">‹</button>
+      <button type="button" id="reportPrevMonth" class="nav-arrow-btn" aria-label="前の月">‹</button>
       <h2 id="reportMonthLabel">2026年8月</h2>
-      <button type="button" id="reportNextMonth" class="icon-btn" aria-label="次の月">›</button>
+      <button type="button" id="reportNextMonth" class="nav-arrow-btn" aria-label="次の月">›</button>
     </div>
 
     <div class="report-stats">
@@ -268,15 +268,15 @@
 </dialog>
 
 <!-- 年間収入グラフ -->
-<dialog id="yearChartModal" class="modal">
+<dialog id="yearChartModal" class="modal modal-page">
   <div class="modal-form">
     <div class="modal-header">
       <button type="button" class="icon-btn" id="closeYearChart" aria-label="閉じる">✕</button>
     </div>
     <div class="center-nav">
-      <button type="button" id="chartPrevYear" class="icon-btn" aria-label="前の年">‹</button>
+      <button type="button" id="chartPrevYear" class="nav-arrow-btn" aria-label="前の年">‹</button>
       <h2 id="chartYearLabel">2026年</h2>
-      <button type="button" id="chartNextYear" class="icon-btn" aria-label="次の年">›</button>
+      <button type="button" id="chartNextYear" class="nav-arrow-btn" aria-label="次の年">›</button>
     </div>
     <div id="yearChartSvgWrap"></div>
     <div class="chart-total" id="yearChartTotal"></div>

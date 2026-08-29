@@ -35,6 +35,27 @@ function uid() {
   return 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2);
 }
 
+// generic left/right swipe detection, used by the calendar, monthly report,
+// and year chart to move between months/years.
+function onHorizontalSwipe(el, { onSwipeLeft, onSwipeRight }) {
+  let startX = 0, startY = 0, tracking = false;
+  el.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    tracking = true;
+  }, { passive: true });
+  el.addEventListener('touchend', (e) => {
+    if (!tracking) return;
+    tracking = false;
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      if (dx < 0) onSwipeLeft(); else onSwipeRight();
+    }
+  }, { passive: true });
+}
+
 let state = loadState();
 
 // ---- date helpers ----
@@ -248,22 +269,25 @@ function renderAll() {
 }
 
 // ---- month navigation ----
-document.getElementById('prevMonth').addEventListener('click', () => {
+function goToPrevMonth() {
   viewMonth--;
   if (viewMonth < 0) { viewMonth = 11; viewYear--; }
   renderAll();
-});
-document.getElementById('nextMonth').addEventListener('click', () => {
+}
+function goToNextMonth() {
   viewMonth++;
   if (viewMonth > 11) { viewMonth = 0; viewYear++; }
   renderAll();
-});
+}
+document.getElementById('prevMonth').addEventListener('click', goToPrevMonth);
+document.getElementById('nextMonth').addEventListener('click', goToNextMonth);
 document.getElementById('monthLabel').addEventListener('click', () => {
   const t = new Date();
   viewYear = t.getFullYear();
   viewMonth = t.getMonth();
   renderAll();
 });
+onHorizontalSwipe(calendarEl, { onSwipeLeft: goToNextMonth, onSwipeRight: goToPrevMonth });
 
 // ---- day modal ----
 const dayModal = document.getElementById('dayModal');
@@ -640,17 +664,23 @@ document.getElementById('openMonthlyReportBtn').addEventListener('click', () => 
   renderMonthlyReport();
   monthlyReportModal.showModal();
 });
-document.getElementById('reportPrevMonth').addEventListener('click', () => {
+function reportGoToPrevMonth() {
   reportMonth--;
   if (reportMonth < 0) { reportMonth = 11; reportYear--; }
   renderMonthlyReport();
-});
-document.getElementById('reportNextMonth').addEventListener('click', () => {
+}
+function reportGoToNextMonth() {
   reportMonth++;
   if (reportMonth > 11) { reportMonth = 0; reportYear++; }
   renderMonthlyReport();
-});
+}
+document.getElementById('reportPrevMonth').addEventListener('click', reportGoToPrevMonth);
+document.getElementById('reportNextMonth').addEventListener('click', reportGoToNextMonth);
 document.getElementById('closeMonthlyReport').addEventListener('click', () => monthlyReportModal.close());
+onHorizontalSwipe(monthlyReportModal.querySelector('.modal-form'), {
+  onSwipeLeft: reportGoToNextMonth,
+  onSwipeRight: reportGoToPrevMonth,
+});
 
 document.getElementById('saveReportBtn').addEventListener('click', () => {
   const key = monthKeyFor(reportYear, reportMonth);
@@ -704,31 +734,15 @@ document.getElementById('openYearChartBtn').addEventListener('click', () => {
   renderYearChart();
   yearChartModal.showModal();
 });
-document.getElementById('chartPrevYear').addEventListener('click', () => { chartYear--; renderYearChart(); });
-document.getElementById('chartNextYear').addEventListener('click', () => { chartYear++; renderYearChart(); });
+function chartGoToPrevYear() { chartYear--; renderYearChart(); }
+function chartGoToNextYear() { chartYear++; renderYearChart(); }
+document.getElementById('chartPrevYear').addEventListener('click', chartGoToPrevYear);
+document.getElementById('chartNextYear').addEventListener('click', chartGoToNextYear);
 document.getElementById('closeYearChart').addEventListener('click', () => yearChartModal.close());
-
-// swipe left/right on the chart to move between years
-(function enableYearChartSwipe() {
-  const target = yearChartModal.querySelector('.modal-form');
-  let startX = 0, startY = 0, tracking = false;
-  target.addEventListener('touchstart', (e) => {
-    if (e.touches.length !== 1) return;
-    startX = e.touches[0].clientX;
-    startY = e.touches[0].clientY;
-    tracking = true;
-  }, { passive: true });
-  target.addEventListener('touchend', (e) => {
-    if (!tracking) return;
-    tracking = false;
-    const dx = e.changedTouches[0].clientX - startX;
-    const dy = e.changedTouches[0].clientY - startY;
-    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-      chartYear += dx < 0 ? 1 : -1;
-      renderYearChart();
-    }
-  }, { passive: true });
-})();
+onHorizontalSwipe(yearChartModal.querySelector('.modal-form'), {
+  onSwipeLeft: chartGoToNextYear,
+  onSwipeRight: chartGoToPrevYear,
+});
 
 // ---- close dialogs by tapping outside ----
 document.querySelectorAll('dialog.modal').forEach(dialog => {
