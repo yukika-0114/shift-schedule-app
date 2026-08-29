@@ -1025,7 +1025,7 @@ presetEditModal.querySelector('form').addEventListener('submit', (e) => {
   }
   saveState();
   presetEditModal.close();
-  presetListModal.close();
+  renderPresetList();
   refreshAllPresetChipLists();
 });
 
@@ -1035,7 +1035,7 @@ deletePresetBtn.addEventListener('click', () => {
   state.timePresets = state.timePresets.filter(p => p.id !== editingPresetId);
   saveState();
   presetEditModal.close();
-  presetListModal.close();
+  renderPresetList();
   refreshAllPresetChipLists();
 });
 
@@ -1094,21 +1094,24 @@ document.getElementById('openYearLimitBtn').addEventListener('click', () => {
   yearLimitModal.showModal();
 });
 
+function saveYearLimit() {
+  state.settings.yearLimitEnabled = yearLimitEnabledInput.checked;
+  state.settings.yearLimitValue = Number(yearLimitValueInput.value) || 0;
+  saveState();
+  renderAll();
+}
+
 yearLimitPresetSel.addEventListener('change', () => {
   if (yearLimitPresetSel.value && yearLimitPresetSel.value !== 'custom') {
     yearLimitValueInput.value = yearLimitPresetSel.value;
   }
+  saveYearLimit();
 });
+yearLimitEnabledInput.addEventListener('change', saveYearLimit);
+yearLimitValueInput.addEventListener('input', saveYearLimit);
+yearLimitValueInput.addEventListener('change', saveYearLimit);
 
 document.getElementById('closeYearLimit').addEventListener('click', () => yearLimitModal.close());
-
-document.getElementById('saveYearLimitBtn').addEventListener('click', () => {
-  state.settings.yearLimitEnabled = yearLimitEnabledInput.checked;
-  state.settings.yearLimitValue = Number(yearLimitValueInput.value) || 0;
-  saveState();
-  yearLimitModal.close();
-  renderAll();
-});
 
 // ---- 月次レポート ----
 const monthlyReportModal = document.getElementById('monthlyReportModal');
@@ -1172,7 +1175,7 @@ onHorizontalSwipe(monthlyReportModal.querySelector('.modal-form'), {
   onSwipeRight: reportGoToPrevMonth,
 });
 
-document.getElementById('saveReportBtn').addEventListener('click', () => {
+function saveReportActualIncome() {
   const key = monthKeyFor(reportYear, reportMonth);
   const rawVal = reportActualIncomeInput.value.trim();
   if (rawVal === '') {
@@ -1181,9 +1184,10 @@ document.getElementById('saveReportBtn').addEventListener('click', () => {
     state.actualMonthlyIncome[key] = Number(rawVal) || 0;
   }
   saveState();
-  monthlyReportModal.close();
   renderAll();
-});
+}
+reportActualIncomeInput.addEventListener('input', saveReportActualIncome);
+reportActualIncomeInput.addEventListener('change', saveReportActualIncome);
 
 // ---- close dialogs by tapping outside ----
 document.querySelectorAll('dialog.modal').forEach(dialog => {
