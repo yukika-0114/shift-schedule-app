@@ -672,6 +672,15 @@ dialog.modal.modal-page .modal-form {
   gap: 6px;
 }
 
+.header-actions.header-actions-stacked {
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.modal-header:has(.header-actions-stacked) {
+  align-items: flex-start;
+}
+
 /* ---- settings menu ---- */
 .settings-menu {
   display: flex;
@@ -731,6 +740,11 @@ dialog.modal.modal-page .modal-form {
   flex-direction: column;
   justify-content: center;
   gap: 12px;
+}
+
+/* a plain top-to-bottom list instead of a vertically centered block */
+.page-main.list-style {
+  justify-content: flex-start;
 }
 
 .report-stats {
