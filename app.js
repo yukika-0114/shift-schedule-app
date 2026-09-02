@@ -43,6 +43,17 @@ function selectOnFocus(el) {
   el.addEventListener('focus', () => el.select());
 }
 
+// fills a <select> with break-time options in 5-minute steps up to 3 hours.
+function populateBreakSelect(selectEl) {
+  selectEl.innerHTML = '';
+  for (let m = 0; m <= 180; m += 5) {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = `${m}分`;
+    selectEl.appendChild(opt);
+  }
+}
+
 // generic left/right swipe detection, used by the calendar and monthly
 // report to move between months.
 function onHorizontalSwipe(el, { onSwipeLeft, onSwipeRight }) {
@@ -500,7 +511,7 @@ const batchSection = document.getElementById('batchSection');
 const batchDateList = document.getElementById('batchDateList');
 let batchDates = [];
 
-selectOnFocus(actualBreakInput);
+populateBreakSelect(actualBreakInput);
 
 function renderBatchDateList() {
   batchDateList.innerHTML = '';
@@ -533,6 +544,11 @@ function updateActualToggleVisibility() {
 }
 
 // ---- time blocks (the "＋" repeatable start/end/break rows) ----
+function clearPresetSelection(row) {
+  delete row.dataset.selectedPresetId;
+  row.querySelectorAll('.tb-preset-chip.selected').forEach(c => c.classList.remove('selected'));
+}
+
 function buildPresetChipList(row) {
   const startInput = row.querySelector('.tb-start');
   const endInput = row.querySelector('.tb-end');
@@ -543,11 +559,20 @@ function buildPresetChipList(row) {
     const chip = document.createElement('button');
     chip.type = 'button';
     chip.className = 'tb-preset-chip';
+    if (row.dataset.selectedPresetId === p.id) chip.classList.add('selected');
     chip.textContent = (p.label ? p.label + '　' : '') + `${p.start}-${p.end}`;
     chip.addEventListener('click', () => {
+      if (row.dataset.selectedPresetId === p.id) {
+        // second tap on the already-selected preset: clear the fill, keep the times as-is
+        clearPresetSelection(row);
+        return;
+      }
       startInput.value = p.start;
       endInput.value = p.end;
       breakInput.value = p.breakMin;
+      row.dataset.selectedPresetId = p.id;
+      chipsWrap.querySelectorAll('.tb-preset-chip').forEach(c => c.classList.remove('selected'));
+      chip.classList.add('selected');
       updateShiftCalcPreview();
     });
     chipsWrap.appendChild(chip);
@@ -565,14 +590,56 @@ function updateTimeBlockRemoveButtons() {
   });
 }
 
+function formatTimeBlockSummary(row) {
+  const start = row.querySelector('.tb-start').value;
+  const end = row.querySelector('.tb-end').value;
+  const breakMin = Number(row.querySelector('.tb-break').value) || 0;
+  return `${start}〜${end}` + (breakMin ? `（休憩${breakMin}分）` : '');
+}
+
+function collapseTimeBlockRow(row) {
+  if (timeBlockList.querySelectorAll('.time-block-row').length < 2) return;
+  row.querySelector('.tb-summary-text').textContent = formatTimeBlockSummary(row);
+  row.classList.add('tb-collapsed');
+}
+
+function expandTimeBlockRow(row) {
+  timeBlockList.querySelectorAll('.time-block-row').forEach(r => {
+    if (r !== row) collapseTimeBlockRow(r);
+  });
+  row.classList.remove('tb-collapsed');
+}
+
+// tapping anywhere outside every time block's editable area collapses whichever one is open
+document.addEventListener('click', (e) => {
+  if (!shiftModal.open) return;
+  if (e.target.closest('.time-block-row') || e.target === addTimeBlockBtn) return;
+  const rows = timeBlockList.querySelectorAll('.time-block-row');
+  if (rows.length < 2) return;
+  rows.forEach(collapseTimeBlockRow);
+});
+
 function createTimeBlockRow(data) {
   data = data || { start: '09:00', end: '17:00', breakMin: 0 };
   const row = document.createElement('div');
   row.className = 'time-block-row';
 
+  const summaryBtn = document.createElement('button');
+  summaryBtn.type = 'button';
+  summaryBtn.className = 'tb-summary';
+  const summaryText = document.createElement('span');
+  summaryText.className = 'tb-summary-text';
+  summaryBtn.appendChild(summaryText);
+  summaryBtn.addEventListener('click', () => expandTimeBlockRow(row));
+  row.appendChild(summaryBtn);
+
+  const full = document.createElement('div');
+  full.className = 'tb-full';
+  row.appendChild(full);
+
   const presetChips = document.createElement('div');
   presetChips.className = 'tb-preset-chips';
-  row.appendChild(presetChips);
+  full.appendChild(presetChips);
 
   const fieldRow = document.createElement('div');
   fieldRow.className = 'field-row';
@@ -603,22 +670,19 @@ function createTimeBlockRow(data) {
 
   fieldRow.appendChild(startLabel);
   fieldRow.appendChild(endLabel);
-  row.appendChild(fieldRow);
+  full.appendChild(fieldRow);
 
   const breakLabel = document.createElement('label');
   breakLabel.className = 'field';
   const breakSpan = document.createElement('span');
   breakSpan.textContent = '休憩（分）';
-  const breakInput = document.createElement('input');
-  breakInput.type = 'number';
+  const breakInput = document.createElement('select');
   breakInput.className = 'tb-break';
-  breakInput.min = '0';
-  breakInput.step = '5';
+  populateBreakSelect(breakInput);
   breakInput.value = data.breakMin;
-  selectOnFocus(breakInput);
   breakLabel.appendChild(breakSpan);
   breakLabel.appendChild(breakInput);
-  row.appendChild(breakLabel);
+  full.appendChild(breakLabel);
 
   const removeBtn = document.createElement('button');
   removeBtn.type = 'button';
@@ -626,15 +690,17 @@ function createTimeBlockRow(data) {
   removeBtn.textContent = '× この時間帯を削除';
   removeBtn.addEventListener('click', () => {
     row.remove();
+    const remaining = timeBlockList.querySelectorAll('.time-block-row');
+    if (remaining.length === 1) remaining[0].classList.remove('tb-collapsed');
     updateTimeBlockRemoveButtons();
     updateActualToggleVisibility();
     updateShiftCalcPreview();
   });
-  row.appendChild(removeBtn);
+  full.appendChild(removeBtn);
 
   [startInput, endInput, breakInput].forEach(el => {
-    el.addEventListener('input', updateShiftCalcPreview);
-    el.addEventListener('change', updateShiftCalcPreview);
+    el.addEventListener('input', () => { clearPresetSelection(row); updateShiftCalcPreview(); });
+    el.addEventListener('change', () => { clearPresetSelection(row); updateShiftCalcPreview(); });
   });
 
   buildPresetChipList(row);
@@ -658,7 +724,11 @@ function getTimeBlocks() {
 }
 
 addTimeBlockBtn.addEventListener('click', () => {
-  timeBlockList.appendChild(createTimeBlockRow());
+  const newRow = createTimeBlockRow();
+  timeBlockList.appendChild(newRow);
+  timeBlockList.querySelectorAll('.time-block-row').forEach(r => {
+    if (r !== newRow) collapseTimeBlockRow(r);
+  });
   updateTimeBlockRemoveButtons();
   updateActualToggleVisibility();
   updateShiftCalcPreview();
@@ -948,7 +1018,7 @@ const presetEndInput = document.getElementById('presetEnd');
 const presetBreakInput = document.getElementById('presetBreak');
 const deletePresetBtn = document.getElementById('deletePresetBtn');
 
-selectOnFocus(presetBreakInput);
+populateBreakSelect(presetBreakInput);
 
 function renderPresetList() {
   presetListEl.innerHTML = '';
