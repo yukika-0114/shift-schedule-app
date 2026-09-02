@@ -176,6 +176,29 @@ function fmtHours(h) {
   return h.toFixed(1) + 'h';
 }
 
+// shared "name + sub" list-row builder, used by the day/workplace/preset lists
+// below (they all render as <div class="{prefix}-row-main"><name/><sub/></div>).
+function createRowMain(prefix, name, sub) {
+  const main = document.createElement('div');
+  main.className = `${prefix}-row-main`;
+  const nameEl = document.createElement('span');
+  nameEl.className = `${prefix}-row-name`;
+  nameEl.textContent = name;
+  const subEl = document.createElement('span');
+  subEl.className = `${prefix}-row-sub`;
+  subEl.textContent = sub;
+  main.appendChild(nameEl);
+  main.appendChild(subEl);
+  return main;
+}
+
+function createColorDot(color) {
+  const dot = document.createElement('span');
+  dot.className = 'shift-color-dot';
+  dot.style.background = color;
+  return dot;
+}
+
 // ---- multi-date selection (long-press a day to batch-add the same shift) ----
 let selectionMode = false;
 let selectedDates = new Set();
@@ -451,23 +474,14 @@ function renderDayShiftList() {
     const row = document.createElement('div');
     row.className = 'shift-row';
 
-    const dot = document.createElement('span');
-    dot.className = 'shift-color-dot';
-    dot.style.background = wp ? wp.color : '#888';
+    const dot = createColorDot(wp ? wp.color : '#888');
 
-    const main = document.createElement('div');
-    main.className = 'shift-row-main';
-    const name = document.createElement('span');
-    name.className = 'shift-row-name';
-    name.textContent = (wp ? wp.name : '（削除された職場）') + (s.hasActual ? '　✓実績' : '');
-    const sub = document.createElement('span');
-    sub.className = 'shift-row-sub';
+    const name = (wp ? wp.name : '（削除された職場）') + (s.hasActual ? '　✓実績' : '');
     const t = effectiveShiftTimes(s);
-    sub.textContent = `${t.start} - ${t.end}` + (t.breakMin ? `（休憩${t.breakMin}分）` : '') +
+    const sub = `${t.start} - ${t.end}` + (t.breakMin ? `（休憩${t.breakMin}分）` : '') +
       (s.hasActual && (s.start !== s.actualStart || s.end !== s.actualEnd) ? `　（予定 ${s.start}-${s.end}）` : '') +
       (s.memo ? ` ・ ${s.memo}` : '');
-    main.appendChild(name);
-    main.appendChild(sub);
+    const main = createRowMain('shift', name, sub);
 
     const income = document.createElement('span');
     income.className = 'shift-row-income';
@@ -590,10 +604,16 @@ function updateTimeBlockRemoveButtons() {
   });
 }
 
+function readTimeBlockRow(row) {
+  return {
+    start: row.querySelector('.tb-start').value,
+    end: row.querySelector('.tb-end').value,
+    breakMin: Number(row.querySelector('.tb-break').value) || 0,
+  };
+}
+
 function formatTimeBlockSummary(row) {
-  const start = row.querySelector('.tb-start').value;
-  const end = row.querySelector('.tb-end').value;
-  const breakMin = Number(row.querySelector('.tb-break').value) || 0;
+  const { start, end, breakMin } = readTimeBlockRow(row);
   return `${start}〜${end}` + (breakMin ? `（休憩${breakMin}分）` : '');
 }
 
@@ -716,11 +736,7 @@ function resetTimeBlocks(blocks) {
 }
 
 function getTimeBlocks() {
-  return [...timeBlockList.querySelectorAll('.time-block-row')].map(row => ({
-    start: row.querySelector('.tb-start').value,
-    end: row.querySelector('.tb-end').value,
-    breakMin: Number(row.querySelector('.tb-break').value) || 0,
-  }));
+  return [...timeBlockList.querySelectorAll('.time-block-row')].map(readTimeBlockRow);
 }
 
 addTimeBlockBtn.addEventListener('click', () => {
@@ -914,21 +930,8 @@ function renderWorkplaceList() {
   state.workplaces.forEach(wp => {
     const row = document.createElement('div');
     row.className = 'workplace-row';
-    const dot = document.createElement('span');
-    dot.className = 'shift-color-dot';
-    dot.style.background = wp.color;
-    const main = document.createElement('div');
-    main.className = 'workplace-row-main';
-    const name = document.createElement('span');
-    name.className = 'workplace-row-name';
-    name.textContent = wp.name;
-    const sub = document.createElement('span');
-    sub.className = 'workplace-row-sub';
-    sub.textContent = `時給 ¥${wp.wage.toLocaleString()}`;
-    main.appendChild(name);
-    main.appendChild(sub);
-    row.appendChild(dot);
-    row.appendChild(main);
+    row.appendChild(createColorDot(wp.color));
+    row.appendChild(createRowMain('workplace', wp.name, `時給 ¥${wp.wage.toLocaleString()}`));
     row.addEventListener('click', () => openWorkplaceEditModal(wp.id));
     workplaceList.appendChild(row);
   });
@@ -1032,17 +1035,9 @@ function renderPresetList() {
   state.timePresets.forEach(p => {
     const row = document.createElement('div');
     row.className = 'workplace-row';
-    const main = document.createElement('div');
-    main.className = 'workplace-row-main';
-    const name = document.createElement('span');
-    name.className = 'workplace-row-name';
-    name.textContent = p.label || `${p.start} - ${p.end}`;
-    const sub = document.createElement('span');
-    sub.className = 'workplace-row-sub';
-    sub.textContent = `${p.start} - ${p.end}` + (p.breakMin ? `（休憩${p.breakMin}分）` : '');
-    main.appendChild(name);
-    main.appendChild(sub);
-    row.appendChild(main);
+    const name = p.label || `${p.start} - ${p.end}`;
+    const sub = `${p.start} - ${p.end}` + (p.breakMin ? `（休憩${p.breakMin}分）` : '');
+    row.appendChild(createRowMain('workplace', name, sub));
     row.addEventListener('click', () => openPresetEditModal(p.id));
     presetListEl.appendChild(row);
   });
@@ -1242,7 +1237,6 @@ function renderMonthlyReport() {
   // 勤務日数: a shift's date doesn't change between plan and actual, so this always equals 予定勤務日数.
   reportWorkDaysEl.textContent = `${workDays}日`;
   reportWorkDaysDiffEl.textContent = '+0日';
-  reportWorkDaysDiffEl.classList.remove('diff-positive', 'diff-negative');
 
   reportPlannedHoursEl.textContent = fmtHours(plannedHours);
   reportWorkHoursEl.textContent = fmtHours(workHours);

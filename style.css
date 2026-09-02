@@ -459,17 +459,6 @@ dialog.modal.modal-page .modal-form {
   cursor: pointer;
 }
 
-.btn-secondary {
-  background: none;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  border-radius: 10px;
-  padding: 12px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
 .btn-block { width: 100%; }
 
 .batch-date-list {
