@@ -776,6 +776,46 @@ dialog.modal.modal-page .modal-form {
 .report-stat-row span:last-child.diff-positive { color: var(--accent-actual); }
 .report-stat-row span:last-child.diff-negative { color: var(--danger); }
 
+.report-stat-row input[type="number"] {
+  width: 120px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-weight: 700;
+  font-size: 16px;
+  text-align: right;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.report-actual-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: var(--surface-2);
+  border: none;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.report-actual-toggle-chevron {
+  transition: transform 0.2s ease;
+}
+
+.report-actual-toggle[aria-expanded="true"] .report-actual-toggle-chevron {
+  transform: rotate(180deg);
+}
+
+.report-actual-stats {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
 /* ---- year income chart ---- */
 .year-chart-svg {
   width: 100%;

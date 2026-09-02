@@ -245,22 +245,19 @@
     </div>
 
     <div class="page-main">
+      <button type="button" id="reportActualToggleBtn" class="report-actual-toggle" aria-expanded="false">
+        <span>実績の入力</span>
+        <span class="report-actual-toggle-chevron">▾</span>
+      </button>
+
       <div class="report-stats">
         <div class="report-stat-row">
-          <span>勤務日数</span>
-          <span id="reportWorkDays">0日</span>
+          <span>予定勤務日数</span>
+          <span id="reportPlannedWorkDays">0日</span>
         </div>
         <div class="report-stat-row">
           <span>予定勤務時間</span>
           <span id="reportPlannedHours">0.0h</span>
-        </div>
-        <div class="report-stat-row">
-          <span>勤務時間</span>
-          <span id="reportWorkHours">0.0h</span>
-        </div>
-        <div class="report-stat-row">
-          <span>勤務時間差異</span>
-          <span id="reportHoursDiff">0.0h</span>
         </div>
         <div class="report-stat-row">
           <span>収入見込み</span>
@@ -268,11 +265,33 @@
         </div>
       </div>
 
-      <label class="field">
-        <span>実際の収入（任意）</span>
-        <input type="number" id="reportActualIncomeInput" min="0" step="1" placeholder="例：120000">
-      </label>
-      <p class="field-hint">入力すると、この月は実績収入として優先表示されます。空欄に戻すと自動計算に戻ります。（自動保存されます）</p>
+      <div class="report-stats report-actual-stats" id="reportActualSection" hidden>
+        <div class="report-stat-row">
+          <span>勤務日数</span>
+          <span id="reportWorkDays">0日</span>
+        </div>
+        <div class="report-stat-row">
+          <span>勤務時間</span>
+          <span id="reportWorkHours">0.0h</span>
+        </div>
+        <div class="report-stat-row">
+          <span>収入</span>
+          <input type="number" id="reportActualIncomeInput" min="0" step="1" placeholder="例：120000">
+        </div>
+        <div class="report-stat-row">
+          <span>勤務日数差異</span>
+          <span id="reportWorkDaysDiff">0日</span>
+        </div>
+        <div class="report-stat-row">
+          <span>勤務時間差異</span>
+          <span id="reportHoursDiff">0.0h</span>
+        </div>
+        <div class="report-stat-row">
+          <span>収入差異</span>
+          <span id="reportIncomeDiff">—</span>
+        </div>
+        <p class="field-hint">収入を入力すると、この月は実績収入として優先表示されます。空欄に戻すと自動計算に戻ります。（自動保存されます）</p>
+      </div>
     </div>
   </div>
 </dialog>

@@ -1082,7 +1082,14 @@ function renderYearLimitChart() {
   yearLimitChartWrap.innerHTML = buildYearChartSvg(viewYear, values);
   const total = values.reduce((a, b) => a + b, 0);
   yearLimitTotalIncome.textContent = `年間合計：${fmtYen(total)}`;
-  yearLimitAvgIncome.textContent = `平均月収：${fmtYen(total / 12)}`;
+
+  const t = new Date();
+  let monthsForAvg = 12;
+  if (viewYear === t.getFullYear()) monthsForAvg = t.getMonth();
+  else if (viewYear > t.getFullYear()) monthsForAvg = 0;
+  monthsForAvg = Math.max(monthsForAvg, 1);
+  const totalSoFar = values.slice(0, monthsForAvg).reduce((a, b) => a + b, 0);
+  yearLimitAvgIncome.textContent = `平均月収：${fmtYen(totalSoFar / monthsForAvg)}`;
 }
 
 document.getElementById('openYearLimitBtn').addEventListener('click', () => {
@@ -1116,16 +1123,40 @@ document.getElementById('closeYearLimit').addEventListener('click', () => yearLi
 // ---- 月次レポート ----
 const monthlyReportModal = document.getElementById('monthlyReportModal');
 const reportMonthLabel = document.getElementById('reportMonthLabel');
+const reportPlannedWorkDaysEl = document.getElementById('reportPlannedWorkDays');
 const reportWorkDaysEl = document.getElementById('reportWorkDays');
+const reportWorkDaysDiffEl = document.getElementById('reportWorkDaysDiff');
 const reportPlannedHoursEl = document.getElementById('reportPlannedHours');
 const reportWorkHoursEl = document.getElementById('reportWorkHours');
 const reportHoursDiffEl = document.getElementById('reportHoursDiff');
 const reportPredictedIncomeEl = document.getElementById('reportPredictedIncome');
+const reportIncomeDiffEl = document.getElementById('reportIncomeDiff');
 const reportActualIncomeInput = document.getElementById('reportActualIncomeInput');
+const reportActualToggleBtn = document.getElementById('reportActualToggleBtn');
+const reportActualSection = document.getElementById('reportActualSection');
 let reportYear = viewYear;
 let reportMonth = viewMonth;
 
 selectOnFocus(reportActualIncomeInput);
+
+function fmtYenDiff(n) {
+  return (n >= 0 ? '+' : '-') + '¥' + Math.round(Math.abs(n)).toLocaleString('ja-JP');
+}
+
+function updateIncomeDiffDisplay() {
+  const predicted = calculatedMonthIncome(reportYear, reportMonth);
+  const key = monthKeyFor(reportYear, reportMonth);
+  const actualVal = state.actualMonthlyIncome[key];
+  reportIncomeDiffEl.classList.remove('diff-positive', 'diff-negative');
+  if (actualVal == null) {
+    reportIncomeDiffEl.textContent = '—';
+  } else {
+    const diff = actualVal - predicted;
+    reportIncomeDiffEl.textContent = fmtYenDiff(diff);
+    if (diff > 0) reportIncomeDiffEl.classList.add('diff-positive');
+    else if (diff < 0) reportIncomeDiffEl.classList.add('diff-negative');
+  }
+}
 
 function renderMonthlyReport() {
   reportMonthLabel.textContent = `${reportYear}年${reportMonth + 1}月`;
@@ -1137,7 +1168,12 @@ function renderMonthlyReport() {
   const workHours = shifts.reduce((sum, s) => sum + effectiveShiftHours(s), 0);
   const hoursDiff = workHours - plannedHours;
 
+  reportPlannedWorkDaysEl.textContent = `${workDays}日`;
+  // 勤務日数: a shift's date doesn't change between plan and actual, so this always equals 予定勤務日数.
   reportWorkDaysEl.textContent = `${workDays}日`;
+  reportWorkDaysDiffEl.textContent = '+0日';
+  reportWorkDaysDiffEl.classList.remove('diff-positive', 'diff-negative');
+
   reportPlannedHoursEl.textContent = fmtHours(plannedHours);
   reportWorkHoursEl.textContent = fmtHours(workHours);
   reportHoursDiffEl.textContent = (hoursDiff >= 0 ? '+' : '') + hoursDiff.toFixed(1) + 'h';
@@ -1148,7 +1184,14 @@ function renderMonthlyReport() {
   reportPredictedIncomeEl.textContent = fmtYen(calculatedMonthIncome(reportYear, reportMonth));
   const key = monthKeyFor(reportYear, reportMonth);
   reportActualIncomeInput.value = state.actualMonthlyIncome[key] != null ? state.actualMonthlyIncome[key] : '';
+  updateIncomeDiffDisplay();
 }
+
+reportActualToggleBtn.addEventListener('click', () => {
+  const willOpen = reportActualSection.hidden;
+  reportActualSection.hidden = !willOpen;
+  reportActualToggleBtn.setAttribute('aria-expanded', String(willOpen));
+});
 
 document.getElementById('openMonthlyReportBtn').addEventListener('click', () => {
   reportYear = viewYear;
@@ -1185,6 +1228,7 @@ function saveReportActualIncome() {
   }
   saveState();
   renderAll();
+  updateIncomeDiffDisplay();
 }
 reportActualIncomeInput.addEventListener('input', saveReportActualIncome);
 reportActualIncomeInput.addEventListener('change', saveReportActualIncome);
