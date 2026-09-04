@@ -5,7 +5,7 @@ const STORAGE_KEY = 'shiftapp_v1';
 const DEFAULT_STATE = {
   workplaces: [],
   shifts: [],
-  settings: { yearLimitEnabled: false, yearLimitValue: 1030000 },
+  settings: { yearLimitEnabled: false, yearLimitValue: 1030000, theme: 'auto', showDayIncome: true },
   actualMonthlyIncome: {},
   actualMonthlyWorkDays: {},
   actualMonthlyWorkHours: {},
@@ -100,6 +100,14 @@ function animateSwap(el, direction, updateFn) {
 }
 
 let state = loadState();
+
+// ---- theme (設定 > テーマ) ----
+function applyTheme() {
+  const theme = state.settings.theme;
+  if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+  else delete document.documentElement.dataset.theme;
+}
+applyTheme();
 
 // ---- date helpers ----
 function pad2(n) { return String(n).padStart(2, '0'); }
@@ -334,7 +342,7 @@ function renderCalendar() {
       more.textContent = `+${dayShifts.length - 3}`;
       btn.appendChild(more);
     }
-    if (dayShifts.length > 0) {
+    if (state.settings.showDayIncome && dayShifts.length > 0) {
       const dayIncome = dayShifts.reduce((sum, s) => sum + effectiveShiftIncome(s), 0);
       const inc = document.createElement('div');
       inc.className = 'day-income';
@@ -1007,11 +1015,35 @@ deleteWorkplaceBtn.addEventListener('click', () => {
   renderAll();
 });
 
-// ---- settings menu ----
-const settingsModal = document.getElementById('settingsModal');
+// ---- menu ----
+const menuModal = document.getElementById('menuModal');
 
-document.getElementById('btnSettings').addEventListener('click', () => {
-  settingsModal.showModal();
+document.getElementById('btnMenu').addEventListener('click', () => {
+  menuModal.showModal();
+});
+
+// ---- 設定（テーマ・カレンダー表示） ----
+const appSettingsModal = document.getElementById('appSettingsModal');
+const themeSelect = document.getElementById('themeSelect');
+const showDayIncomeToggle = document.getElementById('showDayIncomeToggle');
+
+document.getElementById('openAppSettingsBtn').addEventListener('click', () => {
+  themeSelect.value = state.settings.theme;
+  showDayIncomeToggle.checked = state.settings.showDayIncome;
+  appSettingsModal.showModal();
+});
+document.getElementById('closeAppSettings').addEventListener('click', () => appSettingsModal.close());
+
+themeSelect.addEventListener('change', () => {
+  state.settings.theme = themeSelect.value;
+  saveState();
+  applyTheme();
+});
+
+showDayIncomeToggle.addEventListener('change', () => {
+  state.settings.showDayIncome = showDayIncomeToggle.checked;
+  saveState();
+  renderCalendar();
 });
 
 // ---- 時間帯プリセット ----

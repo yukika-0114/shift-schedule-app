@@ -21,7 +21,7 @@
       <button id="monthLabel" class="month-label" aria-label="今月へ">2026年1月</button>
       <button id="nextMonth" class="nav-arrow-btn" aria-label="次の月">›</button>
     </div>
-    <button id="btnSettings" class="icon-btn icon-btn-plain" aria-label="設定">⚙️</button>
+    <button id="btnMenu" class="icon-btn icon-btn-plain" aria-label="メニュー">☰</button>
   </header>
 
   <div class="selection-bar" id="selectionBar" hidden>
@@ -169,11 +169,11 @@
   </form>
 </dialog>
 
-<!-- 設定メニュー（項目一覧） -->
-<dialog id="settingsModal" class="modal modal-center">
+<!-- メニュー（項目一覧） -->
+<dialog id="menuModal" class="modal modal-center">
   <form method="dialog" class="modal-form">
     <div class="modal-header">
-      <h2>設定</h2>
+      <h2>メニュー</h2>
       <button type="submit" class="icon-btn" aria-label="閉じる">✕</button>
     </div>
     <div class="settings-menu">
@@ -189,8 +189,38 @@
         <span>時間帯プリセット</span>
         <span class="chevron">›</span>
       </button>
+      <button type="button" class="settings-menu-item" id="openAppSettingsBtn">
+        <span>設定</span>
+        <span class="chevron">›</span>
+      </button>
     </div>
   </form>
+</dialog>
+
+<!-- 設定 -->
+<dialog id="appSettingsModal" class="modal modal-page">
+  <div class="modal-form">
+    <div class="modal-header">
+      <h2>設定</h2>
+      <button type="button" class="icon-btn" id="closeAppSettings" aria-label="閉じる">✕</button>
+    </div>
+
+    <div class="page-main">
+      <label class="field">
+        <span>テーマ</span>
+        <select id="themeSelect">
+          <option value="auto">自動（端末の設定に従う）</option>
+          <option value="light">ライト</option>
+          <option value="dark">ダーク</option>
+        </select>
+      </label>
+
+      <label class="field checkbox-field">
+        <input type="checkbox" id="showDayIncomeToggle">
+        <span>カレンダーにその日の収益を表示する</span>
+      </label>
+    </div>
+  </div>
 </dialog>
 
 <!-- 年間収入（上限額の設定） -->

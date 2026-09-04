@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shiftapp-cache-v18';
+const CACHE_NAME = 'shiftapp-cache-v19';
 const APP_SHELL = [
   './',
   './index.html',

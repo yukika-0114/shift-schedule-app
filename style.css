@@ -17,7 +17,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #101218;
     --surface: #1a1d27;
     --surface-2: #232634;
@@ -33,6 +33,24 @@
     --accent-actual: #34d17c;
     --accent-actual-sub: #163524;
   }
+}
+
+/* explicit theme choice from 設定 (overrides the OS-driven default above) */
+:root[data-theme="dark"] {
+  --bg: #101218;
+  --surface: #1a1d27;
+  --surface-2: #232634;
+  --text: #eceef3;
+  --text-sub: #9aa0ae;
+  --border: #2c303e;
+  --accent: #8b85f7;
+  --accent-sub: #262445;
+  --danger: #f27069;
+  --shadow: 0 2px 14px rgba(0, 0, 0, 0.4);
+  --sun: #f27069;
+  --sat: #6ea3f5;
+  --accent-actual: #34d17c;
+  --accent-actual-sub: #163524;
 }
 
 * { box-sizing: border-box; }
