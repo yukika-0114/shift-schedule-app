@@ -470,6 +470,7 @@ dialog.modal.modal-page .modal-form {
   justify-content: space-between;
   font-size: 14px;
   color: var(--text);
+  margin-top: 20px;
 }
 
 .switch {
