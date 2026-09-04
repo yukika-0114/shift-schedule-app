@@ -7,6 +7,8 @@ const DEFAULT_STATE = {
   shifts: [],
   settings: { yearLimitEnabled: false, yearLimitValue: 1030000 },
   actualMonthlyIncome: {},
+  actualMonthlyWorkDays: {},
+  actualMonthlyWorkHours: {},
   timePresets: [],
 };
 
@@ -20,6 +22,8 @@ function loadState() {
       shifts: parsed.shifts || [],
       settings: Object.assign({}, DEFAULT_STATE.settings, parsed.settings || {}),
       actualMonthlyIncome: parsed.actualMonthlyIncome || {},
+      actualMonthlyWorkDays: parsed.actualMonthlyWorkDays || {},
+      actualMonthlyWorkHours: parsed.actualMonthlyWorkHours || {},
       timePresets: parsed.timePresets || [],
     };
   } catch (e) {
@@ -1189,10 +1193,10 @@ document.getElementById('closeYearLimit').addEventListener('click', () => yearLi
 const monthlyReportModal = document.getElementById('monthlyReportModal');
 const reportMonthLabel = document.getElementById('reportMonthLabel');
 const reportPlannedWorkDaysEl = document.getElementById('reportPlannedWorkDays');
-const reportWorkDaysEl = document.getElementById('reportWorkDays');
+const reportWorkDaysInput = document.getElementById('reportWorkDaysInput');
 const reportWorkDaysDiffEl = document.getElementById('reportWorkDaysDiff');
 const reportPlannedHoursEl = document.getElementById('reportPlannedHours');
-const reportWorkHoursEl = document.getElementById('reportWorkHours');
+const reportWorkHoursInput = document.getElementById('reportWorkHoursInput');
 const reportHoursDiffEl = document.getElementById('reportHoursDiff');
 const reportPredictedIncomeEl = document.getElementById('reportPredictedIncome');
 const reportIncomeDiffEl = document.getElementById('reportIncomeDiff');
@@ -1202,21 +1206,49 @@ const reportActualSection = document.getElementById('reportActualSection');
 let reportYear = viewYear;
 let reportMonth = viewMonth;
 
+// the scheduled plan and the shift-based calculated actuals for the month
+// currently shown in the report; refreshed by renderMonthlyReport() and read
+// by updateReportDiffs() so a diff recalculates instantly as you type.
+let reportPlannedWorkDays = 0;
+let reportPlannedHours = 0;
+let reportCalcWorkDays = 0;
+let reportCalcWorkHours = 0;
+let reportPredictedIncome = 0;
+
 selectOnFocus(reportActualIncomeInput);
 
 function fmtYenDiff(n) {
   return (n >= 0 ? '+' : '-') + '¥' + Math.round(Math.abs(n)).toLocaleString('ja-JP');
 }
 
-function updateIncomeDiffDisplay() {
-  const predicted = calculatedMonthIncome(reportYear, reportMonth);
+// recomputes every 差異 row from the current override values (falling back to
+// the shift-based calculation when an override is absent/0/blank), so typing
+// in 勤務日数・勤務時間・収入 updates their diffs immediately.
+function updateReportDiffs() {
   const key = monthKeyFor(reportYear, reportMonth);
-  const actualVal = state.actualMonthlyIncome[key];
+
+  const workDaysOverride = state.actualMonthlyWorkDays[key];
+  const effWorkDays = workDaysOverride != null ? workDaysOverride : reportCalcWorkDays;
+  const workDaysDiff = effWorkDays - reportPlannedWorkDays;
+  reportWorkDaysDiffEl.textContent = (workDaysDiff >= 0 ? '+' : '') + workDaysDiff + '日';
+  reportWorkDaysDiffEl.classList.remove('diff-positive', 'diff-negative');
+  if (workDaysDiff > 0) reportWorkDaysDiffEl.classList.add('diff-positive');
+  else if (workDaysDiff < 0) reportWorkDaysDiffEl.classList.add('diff-negative');
+
+  const workHoursOverride = state.actualMonthlyWorkHours[key];
+  const effWorkHours = workHoursOverride != null ? workHoursOverride : reportCalcWorkHours;
+  const hoursDiff = effWorkHours - reportPlannedHours;
+  reportHoursDiffEl.textContent = (hoursDiff >= 0 ? '+' : '') + hoursDiff.toFixed(1) + 'h';
+  reportHoursDiffEl.classList.remove('diff-positive', 'diff-negative');
+  if (hoursDiff > 0.05) reportHoursDiffEl.classList.add('diff-positive');
+  else if (hoursDiff < -0.05) reportHoursDiffEl.classList.add('diff-negative');
+
+  const incomeOverride = state.actualMonthlyIncome[key];
   reportIncomeDiffEl.classList.remove('diff-positive', 'diff-negative');
-  if (actualVal == null) {
+  if (incomeOverride == null) {
     reportIncomeDiffEl.textContent = '—';
   } else {
-    const diff = actualVal - predicted;
+    const diff = incomeOverride - reportPredictedIncome;
     reportIncomeDiffEl.textContent = fmtYenDiff(diff);
     if (diff > 0) reportIncomeDiffEl.classList.add('diff-positive');
     else if (diff < 0) reportIncomeDiffEl.classList.add('diff-negative');
@@ -1231,25 +1263,50 @@ function renderMonthlyReport() {
   const plannedHours = shifts.reduce((sum, s) => sum + shiftDurationHours(s.start, s.end, s.breakMin), 0);
   // 勤務時間: the actual record when present, otherwise the plan (same as everywhere else in the app).
   const workHours = shifts.reduce((sum, s) => sum + effectiveShiftHours(s), 0);
-  const hoursDiff = workHours - plannedHours;
+
+  reportPlannedWorkDays = workDays;
+  reportPlannedHours = plannedHours;
+  // 勤務日数: a shift's date doesn't change between plan and actual, so this always equals 予定勤務日数
+  // unless the user overrides it below.
+  reportCalcWorkDays = workDays;
+  reportCalcWorkHours = Math.round(workHours * 10) / 10;
+  reportPredictedIncome = calculatedMonthIncome(reportYear, reportMonth);
 
   reportPlannedWorkDaysEl.textContent = `${workDays}日`;
-  // 勤務日数: a shift's date doesn't change between plan and actual, so this always equals 予定勤務日数.
-  reportWorkDaysEl.textContent = `${workDays}日`;
-  reportWorkDaysDiffEl.textContent = '+0日';
-
   reportPlannedHoursEl.textContent = fmtHours(plannedHours);
-  reportWorkHoursEl.textContent = fmtHours(workHours);
-  reportHoursDiffEl.textContent = (hoursDiff >= 0 ? '+' : '') + hoursDiff.toFixed(1) + 'h';
-  reportHoursDiffEl.classList.remove('diff-positive', 'diff-negative');
-  if (hoursDiff > 0.05) reportHoursDiffEl.classList.add('diff-positive');
-  else if (hoursDiff < -0.05) reportHoursDiffEl.classList.add('diff-negative');
+  reportPredictedIncomeEl.textContent = fmtYen(reportPredictedIncome);
 
-  reportPredictedIncomeEl.textContent = fmtYen(calculatedMonthIncome(reportYear, reportMonth));
   const key = monthKeyFor(reportYear, reportMonth);
+  const workDaysOverride = state.actualMonthlyWorkDays[key];
+  const workHoursOverride = state.actualMonthlyWorkHours[key];
+  reportWorkDaysInput.value = workDaysOverride != null ? workDaysOverride : reportCalcWorkDays;
+  reportWorkHoursInput.value = workHoursOverride != null ? workHoursOverride : reportCalcWorkHours;
   reportActualIncomeInput.value = state.actualMonthlyIncome[key] != null ? state.actualMonthlyIncome[key] : '';
-  updateIncomeDiffDisplay();
+  updateReportDiffs();
 }
+
+function saveReportActualWorkDays() {
+  const key = monthKeyFor(reportYear, reportMonth);
+  const n = Number(reportWorkDaysInput.value);
+  if (n > 0) state.actualMonthlyWorkDays[key] = n;
+  else delete state.actualMonthlyWorkDays[key];
+  saveState();
+  updateReportDiffs();
+}
+function saveReportActualWorkHours() {
+  const key = monthKeyFor(reportYear, reportMonth);
+  const n = Number(reportWorkHoursInput.value);
+  if (n > 0) state.actualMonthlyWorkHours[key] = n;
+  else delete state.actualMonthlyWorkHours[key];
+  saveState();
+  updateReportDiffs();
+}
+reportWorkDaysInput.addEventListener('input', saveReportActualWorkDays);
+reportWorkDaysInput.addEventListener('change', saveReportActualWorkDays);
+reportWorkHoursInput.addEventListener('input', saveReportActualWorkHours);
+reportWorkHoursInput.addEventListener('change', saveReportActualWorkHours);
+selectOnFocus(reportWorkDaysInput);
+selectOnFocus(reportWorkHoursInput);
 
 reportActualToggleBtn.addEventListener('click', () => {
   const willOpen = reportActualSection.hidden;
@@ -1292,7 +1349,7 @@ function saveReportActualIncome() {
   }
   saveState();
   renderAll();
-  updateIncomeDiffDisplay();
+  updateReportDiffs();
 }
 reportActualIncomeInput.addEventListener('input', saveReportActualIncome);
 reportActualIncomeInput.addEventListener('change', saveReportActualIncome);

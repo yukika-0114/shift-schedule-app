@@ -268,11 +268,11 @@
       <div class="report-stats report-actual-stats" id="reportActualSection" hidden>
         <div class="report-stat-row">
           <span>勤務日数</span>
-          <span id="reportWorkDays">0日</span>
+          <input type="number" id="reportWorkDaysInput" min="0" step="1">
         </div>
         <div class="report-stat-row">
           <span>勤務時間</span>
-          <span id="reportWorkHours">0.0h</span>
+          <input type="number" id="reportWorkHoursInput" min="0" step="0.1">
         </div>
         <div class="report-stat-row">
           <span>収入</span>
@@ -290,7 +290,7 @@
           <span>収入差異</span>
           <span id="reportIncomeDiff">—</span>
         </div>
-        <p class="field-hint">収入を入力すると、この月は実績収入として優先表示されます。空欄に戻すと自動計算に戻ります。（自動保存されます）</p>
+        <p class="field-hint">勤務日数・勤務時間・収入は、シフトの実績記録から自動計算した値が入っています。数値を書き換えるとその月の実績として優先され、0または空欄に戻すと自動計算に戻ります。（自動保存されます）</p>
       </div>
     </div>
   </div>
