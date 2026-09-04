@@ -1024,20 +1024,29 @@ document.getElementById('btnMenu').addEventListener('click', () => {
 
 // ---- 設定（テーマ・カレンダー表示） ----
 const appSettingsModal = document.getElementById('appSettingsModal');
-const themeSelect = document.getElementById('themeSelect');
+const themeButtons = document.getElementById('themeButtons');
 const showDayIncomeToggle = document.getElementById('showDayIncomeToggle');
 
+function setActiveThemeButton(theme) {
+  themeButtons.querySelectorAll('.segmented-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.value === theme);
+  });
+}
+
 document.getElementById('openAppSettingsBtn').addEventListener('click', () => {
-  themeSelect.value = state.settings.theme;
+  setActiveThemeButton(state.settings.theme);
   showDayIncomeToggle.checked = state.settings.showDayIncome;
   appSettingsModal.showModal();
 });
 document.getElementById('closeAppSettings').addEventListener('click', () => appSettingsModal.close());
 
-themeSelect.addEventListener('change', () => {
-  state.settings.theme = themeSelect.value;
-  saveState();
-  applyTheme();
+themeButtons.querySelectorAll('.segmented-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.settings.theme = btn.dataset.value;
+    saveState();
+    applyTheme();
+    setActiveThemeButton(state.settings.theme);
+  });
 });
 
 showDayIncomeToggle.addEventListener('change', () => {

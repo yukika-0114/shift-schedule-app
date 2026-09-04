@@ -206,19 +206,22 @@
     </div>
 
     <div class="page-main">
-      <label class="field">
+      <div class="field">
         <span>テーマ</span>
-        <select id="themeSelect">
-          <option value="auto">自動（端末の設定に従う）</option>
-          <option value="light">ライト</option>
-          <option value="dark">ダーク</option>
-        </select>
-      </label>
+        <div class="segmented" id="themeButtons">
+          <button type="button" class="segmented-btn" data-value="auto">自動</button>
+          <button type="button" class="segmented-btn" data-value="light">ライト</button>
+          <button type="button" class="segmented-btn" data-value="dark">ダーク</button>
+        </div>
+      </div>
 
-      <label class="field checkbox-field">
-        <input type="checkbox" id="showDayIncomeToggle">
-        <span>カレンダーにその日の収益を表示する</span>
-      </label>
+      <div class="field toggle-field">
+        <span>収益を表示</span>
+        <label class="switch">
+          <input type="checkbox" id="showDayIncomeToggle">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
     </div>
   </div>
 </dialog>
