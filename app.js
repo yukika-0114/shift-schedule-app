@@ -332,7 +332,13 @@ function renderCalendar() {
       const chip = document.createElement('div');
       chip.className = 'day-chip';
       chip.style.background = wp ? wp.color : '#888';
-      chip.textContent = `${s.hasActual ? '✓ ' : ''}${t.start}${wp ? ' ' + wp.name : ''}`;
+      chip.append(`${s.hasActual ? '✓ ' : ''}${t.start}`);
+      if (wp) {
+        const wpName = document.createElement('span');
+        wpName.className = 'day-chip-name';
+        wpName.textContent = ' ' + wp.name;
+        chip.appendChild(wpName);
+      }
       btn.appendChild(chip);
     });
     if (dayShifts.length > 3) {
