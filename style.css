@@ -855,21 +855,24 @@ dialog.modal.modal-page .modal-form {
   font-weight: 700;
 }
 
-/* main content of a full-page settings screen, centered in the
-   leftover vertical space between the header/nav and the save button */
+/* main content of a full-page screen, laid out top to bottom */
 .page-main {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 12px;
+  padding-top: 8px;
 }
 
-/* a plain top-to-bottom list instead of a vertically centered block */
 .page-main.list-style {
-  justify-content: flex-start;
   padding-bottom: 76px; /* keep content clear of the floating add button */
+}
+
+/* no focus ring on buttons/dialogs (showModal auto-focuses the first control) */
+button:focus, button:focus-visible, dialog:focus, dialog:focus-visible {
+  outline: none;
 }
 
 .report-stats {
