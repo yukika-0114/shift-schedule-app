@@ -369,13 +369,36 @@ dialog.modal::backdrop {
   background: rgba(10, 10, 20, 0.5);
 }
 
-/* centered popup card (e.g. the settings entry menu) */
-dialog.modal.modal-center {
-  border-radius: var(--radius);
-  width: calc(100% - 32px);
-  max-width: 420px;
-  margin: auto;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+/* side drawer sliding in from the right (the ☰ menu) */
+dialog.modal.modal-drawer {
+  width: min(82vw, 320px);
+  height: 100%;
+  max-height: none;
+  margin: 0 0 0 auto;
+  border-radius: var(--radius) 0 0 var(--radius);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.3);
+  transform: translateX(100%);
+  transition: transform 0.25s ease, overlay 0.25s allow-discrete, display 0.25s allow-discrete;
+}
+
+dialog.modal.modal-drawer[open] { transform: translateX(0); }
+
+@starting-style {
+  dialog.modal.modal-drawer[open] { transform: translateX(100%); }
+}
+
+dialog.modal.modal-drawer::backdrop {
+  transition: background 0.25s ease, overlay 0.25s allow-discrete, display 0.25s allow-discrete;
+}
+
+@starting-style {
+  dialog.modal.modal-drawer[open]::backdrop { background: transparent; }
+}
+
+dialog.modal.modal-drawer .modal-form {
+  height: 100%;
+  max-height: none;
+  padding-top: max(16px, env(safe-area-inset-top));
 }
 
 /* full-screen page takeover (settings sub-screens) */
