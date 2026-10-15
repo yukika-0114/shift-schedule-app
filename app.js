@@ -270,15 +270,21 @@ document.getElementById('selectionConfirmBtn').addEventListener('click', () => {
 });
 
 // ---- rendering: calendar ----
-// how many of a day's shifts to draw as chips. Wide screens show up to 3. On
-// phones a chip is ~2.8 lines (✓/circle line + start + end), so fit as many
-// as the line budget allows, leaving one line for "+N" when some are left out.
-const CHIP_LINES = 2.8;
-function countVisibleChips(dayShifts, isNarrow, lineBudget) {
-  if (!isNarrow) return Math.min(dayShifts.length, 3);
-  let count = Math.floor(lineBudget / CHIP_LINES);
-  if (count < dayShifts.length) count = Math.floor((lineBudget - 1) / CHIP_LINES);
-  return Math.max(1, Math.min(count, dayShifts.length));
+// On phones, drop chips from the end of a day (replacing them with "+N")
+// until the cell's content no longer overflows its height.
+function fitChipsToCell(cell, totalShifts) {
+  const chips = () => [...cell.querySelectorAll('.day-chip:not(.day-chip-more)')];
+  let more = cell.querySelector('.day-chip-more');
+  while (cell.scrollHeight > cell.clientHeight + 1 && chips().length > 1) {
+    const list = chips();
+    list[list.length - 1].remove();
+    if (!more) {
+      more = document.createElement('div');
+      more.className = 'day-chip day-chip-more';
+      cell.insertBefore(more, cell.querySelector('.day-income'));
+    }
+    more.textContent = `+${totalShifts - chips().length}`;
+  }
 }
 
 const monthLabelEl = document.getElementById('monthLabel');
@@ -317,10 +323,7 @@ function renderCalendar() {
     cells.push({ y: ny, m: nm, d: i, otherMonth: true });
   }
 
-  const weekRows = cells.length / 7;
-  calendarEl.style.gridTemplateRows = `repeat(${weekRows}, 1fr)`;
-  // text lines that fit in a phone-width cell: shorter cells in 6-week months
-  const lineBudget = weekRows >= 6 ? 4.4 : weekRows === 5 ? 6 : 8;
+  calendarEl.style.gridTemplateRows = `repeat(${cells.length / 7}, 1fr)`;
 
   cells.forEach((cell, idx) => {
     const key = toDateKey(cell.y, cell.m, cell.d);
@@ -341,7 +344,8 @@ function renderCalendar() {
     btn.appendChild(num);
 
     const dayShifts = shiftsForDate(key);
-    const visibleCount = countVisibleChips(dayShifts, isNarrowScreen, lineBudget);
+    // wide screens: up to 3 chips; phones: all, then trimmed to fit below
+    const visibleCount = isNarrowScreen ? dayShifts.length : Math.min(dayShifts.length, 3);
     dayShifts.slice(0, visibleCount).forEach(s => {
       const wp = state.workplaces.find(w => w.id === s.workplaceId);
       const t = effectiveShiftTimes(s);
@@ -367,7 +371,12 @@ function renderCalendar() {
       const endEl = document.createElement('span');
       endEl.className = 'day-chip-end';
       endEl.textContent = t.end;
-      chip.append(startEl, endEl);
+      // the times sit in a block filled with the workplace color
+      const timeEl = document.createElement('span');
+      timeEl.className = 'day-chip-time';
+      timeEl.style.background = wp ? wp.color : '#888';
+      timeEl.append(startEl, endEl);
+      chip.appendChild(timeEl);
       if (wp) {
         const wpName = document.createElement('span');
         wpName.className = 'day-chip-name';
@@ -397,6 +406,13 @@ function renderCalendar() {
     });
     calendarEl.appendChild(btn);
   });
+
+  if (isNarrowScreen) {
+    calendarEl.querySelectorAll('.day-cell').forEach(btn => {
+      const total = shiftsForDate(btn.dataset.dateKey).length;
+      if (total > 1) fitChipsToCell(btn, total);
+    });
+  }
 }
 
 // ---- long-press detection on the calendar (enters/extends selection mode) ----

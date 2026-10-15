@@ -323,6 +323,7 @@ html, body {
 
 /* plain text (no colored block): [✓] / start / end, one shift per group */
 .day-chip {
+  flex: none;
   font-size: 10.5px;
   line-height: 1.25;
   padding: 1px 0;
@@ -344,6 +345,21 @@ html, body {
   color: var(--accent-actual);
   font-weight: 700;
   line-height: 1;
+}
+
+.day-chip-time {
+  display: inline-block;
+  color: #fff;
+  border-radius: 4px;
+  padding: 2px 3px;
+}
+
+@media (max-width: 480px) {
+  .day-cell { padding: 4px 3px; }
+  .day-chip { font-size: 10px; line-height: 1.15; padding: 0; }
+  .day-chip-head { height: 9px; }
+  .day-chip-dot { width: 7px; height: 7px; }
+  .day-chip-time { display: block; padding: 1px 2px; }
 }
 
 .day-chip-dot {
