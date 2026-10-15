@@ -331,9 +331,17 @@ html, body {
   text-overflow: ellipsis;
 }
 
-/* narrow cells: keep the start time readable and drop the workplace name
+/* narrow cells: start and end stacked on two lines, workplace name dropped
    (the chip color already identifies it) */
 @media (max-width: 480px) {
+  .day-chip {
+    font-size: 10.5px;
+    line-height: 1.25;
+    padding: 2px 3px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .day-chip-end { display: block; }
   .day-chip-name { display: none; }
 }
 
@@ -653,8 +661,9 @@ dialog.modal.modal-page .modal-form {
 }
 
 .shift-row-sub {
-  font-size: 12px;
-  color: var(--text-sub);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
 }
 
 .shift-row-income {

@@ -286,6 +286,8 @@ function renderCalendar() {
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
   const daysInPrevMonth = new Date(viewYear, viewMonth, 0).getDate();
   const today = todayKey();
+  const isNarrowScreen = window.matchMedia('(max-width: 480px)').matches;
+  const maxChips = isNarrowScreen ? 2 : 3;
 
   const cells = [];
   // leading days from previous month
@@ -326,13 +328,22 @@ function renderCalendar() {
     btn.appendChild(num);
 
     const dayShifts = shiftsForDate(key);
-    dayShifts.slice(0, 3).forEach(s => {
+    // chips show start and end; on phones each takes two lines, so fewer fit
+    const shownCount = Math.min(dayShifts.length, maxChips);
+    const visibleCount = isNarrowScreen && dayShifts.length > maxChips ? maxChips - 1 : shownCount;
+    dayShifts.slice(0, visibleCount).forEach(s => {
       const wp = state.workplaces.find(w => w.id === s.workplaceId);
       const t = effectiveShiftTimes(s);
       const chip = document.createElement('div');
       chip.className = 'day-chip';
       chip.style.background = wp ? wp.color : '#888';
-      chip.append(`${s.hasActual ? '✓ ' : ''}${t.start}`);
+      const startEl = document.createElement('span');
+      startEl.className = 'day-chip-start';
+      startEl.textContent = `${s.hasActual ? '✓' : ''}${t.start}`;
+      const endEl = document.createElement('span');
+      endEl.className = 'day-chip-end';
+      endEl.textContent = `–${t.end}`;
+      chip.append(startEl, endEl);
       if (wp) {
         const wpName = document.createElement('span');
         wpName.className = 'day-chip-name';
@@ -341,11 +352,11 @@ function renderCalendar() {
       }
       btn.appendChild(chip);
     });
-    if (dayShifts.length > 3) {
+    if (dayShifts.length > visibleCount) {
       const more = document.createElement('div');
       more.className = 'day-chip';
       more.style.background = '#888';
-      more.textContent = `+${dayShifts.length - 3}`;
+      more.textContent = `+${dayShifts.length - visibleCount}`;
       btn.appendChild(more);
     }
     if (state.settings.showDayIncome && dayShifts.length > 0) {
