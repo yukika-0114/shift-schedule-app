@@ -333,10 +333,24 @@ html, body {
   font-variant-numeric: tabular-nums;
 }
 
+.day-chip-head {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 11px;
+}
+
 .day-chip-check {
-  display: block;
   color: var(--accent-actual);
   font-weight: 700;
+  line-height: 1;
+}
+
+.day-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
 }
 
 .day-chip-more { color: var(--text-sub); }

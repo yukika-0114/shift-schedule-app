@@ -271,23 +271,14 @@ document.getElementById('selectionConfirmBtn').addEventListener('click', () => {
 
 // ---- rendering: calendar ----
 // how many of a day's shifts to draw as chips. Wide screens show up to 3. On
-// phones a chip is 2 lines (3 with the ✓ line), so fit as many as the line
-// budget allows, leaving one line for "+N" when some are left out.
+// phones a chip is ~2.8 lines (✓/circle line + start + end), so fit as many
+// as the line budget allows, leaving one line for "+N" when some are left out.
+const CHIP_LINES = 2.8;
 function countVisibleChips(dayShifts, isNarrow, lineBudget) {
   if (!isNarrow) return Math.min(dayShifts.length, 3);
-  const linesFor = s => (s.hasActual ? 3 : 2);
-  let used = 0;
-  let count = 0;
-  for (const s of dayShifts) {
-    if (used + linesFor(s) > lineBudget) break;
-    used += linesFor(s);
-    count++;
-  }
-  while (count > 1 && count < dayShifts.length && used + 1 > lineBudget) {
-    count--;
-    used -= linesFor(dayShifts[count]);
-  }
-  return Math.max(count, 1);
+  let count = Math.floor(lineBudget / CHIP_LINES);
+  if (count < dayShifts.length) count = Math.floor((lineBudget - 1) / CHIP_LINES);
+  return Math.max(1, Math.min(count, dayShifts.length));
 }
 
 const monthLabelEl = document.getElementById('monthLabel');
@@ -329,7 +320,7 @@ function renderCalendar() {
   const weekRows = cells.length / 7;
   calendarEl.style.gridTemplateRows = `repeat(${weekRows}, 1fr)`;
   // text lines that fit in a phone-width cell: shorter cells in 6-week months
-  const lineBudget = weekRows >= 6 ? 4 : weekRows === 5 ? 5 : 7;
+  const lineBudget = weekRows >= 6 ? 4.4 : weekRows === 5 ? 6 : 8;
 
   cells.forEach((cell, idx) => {
     const key = toDateKey(cell.y, cell.m, cell.d);
@@ -356,18 +347,26 @@ function renderCalendar() {
       const t = effectiveShiftTimes(s);
       const chip = document.createElement('div');
       chip.className = 'day-chip';
+      // top line: ✓ (when an actual is recorded) + a circle in the workplace color
+      const headEl = document.createElement('div');
+      headEl.className = 'day-chip-head';
       if (s.hasActual) {
         const checkEl = document.createElement('span');
         checkEl.className = 'day-chip-check';
         checkEl.textContent = '✓';
-        chip.appendChild(checkEl);
+        headEl.appendChild(checkEl);
       }
+      const dotEl = document.createElement('span');
+      dotEl.className = 'day-chip-dot';
+      dotEl.style.background = wp ? wp.color : '#888';
+      headEl.appendChild(dotEl);
+      chip.appendChild(headEl);
       const startEl = document.createElement('span');
       startEl.className = 'day-chip-start';
-      startEl.textContent = t.start;
+      startEl.textContent = `${t.start}-`;
       const endEl = document.createElement('span');
       endEl.className = 'day-chip-end';
-      endEl.textContent = `–${t.end}`;
+      endEl.textContent = t.end;
       chip.append(startEl, endEl);
       if (wp) {
         const wpName = document.createElement('span');
