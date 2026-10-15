@@ -321,26 +321,29 @@ html, body {
 .day-cell.sun-col .day-num { color: var(--sun); }
 .day-cell.sat-col .day-num { color: var(--sat); }
 
+/* plain text (no colored block): [✓] / start / end, one shift per group */
 .day-chip {
   font-size: 10.5px;
-  border-radius: 4px;
-  padding: 2px 4px;
-  color: #fff;
+  line-height: 1.25;
+  padding: 1px 0;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
 }
 
-/* narrow cells: start and end stacked on two lines, workplace name dropped
-   (the chip color already identifies it) */
+.day-chip-check {
+  display: block;
+  color: var(--accent-actual);
+  font-weight: 700;
+}
+
+.day-chip-more { color: var(--text-sub); }
+
+/* narrow cells: start and end stacked on two lines, workplace name dropped */
 @media (max-width: 480px) {
-  .day-chip {
-    font-size: 10.5px;
-    line-height: 1.25;
-    padding: 2px 3px;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-  }
+  .day-chip { font-weight: 600; }
   .day-chip-end { display: block; }
   .day-chip-name { display: none; }
 }
@@ -664,6 +667,7 @@ dialog.modal.modal-page .modal-form {
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
+  white-space: pre-line;
 }
 
 .shift-row-income {

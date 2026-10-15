@@ -270,6 +270,26 @@ document.getElementById('selectionConfirmBtn').addEventListener('click', () => {
 });
 
 // ---- rendering: calendar ----
+// how many of a day's shifts to draw as chips. Wide screens show up to 3. On
+// phones a chip is 2 lines (3 with the ✓ line), so fit as many as the line
+// budget allows, leaving one line for "+N" when some are left out.
+function countVisibleChips(dayShifts, isNarrow, lineBudget) {
+  if (!isNarrow) return Math.min(dayShifts.length, 3);
+  const linesFor = s => (s.hasActual ? 3 : 2);
+  let used = 0;
+  let count = 0;
+  for (const s of dayShifts) {
+    if (used + linesFor(s) > lineBudget) break;
+    used += linesFor(s);
+    count++;
+  }
+  while (count > 1 && count < dayShifts.length && used + 1 > lineBudget) {
+    count--;
+    used -= linesFor(dayShifts[count]);
+  }
+  return Math.max(count, 1);
+}
+
 const monthLabelEl = document.getElementById('monthLabel');
 const calendarEl = document.getElementById('calendar');
 
@@ -287,7 +307,6 @@ function renderCalendar() {
   const daysInPrevMonth = new Date(viewYear, viewMonth, 0).getDate();
   const today = todayKey();
   const isNarrowScreen = window.matchMedia('(max-width: 480px)').matches;
-  const maxChips = isNarrowScreen ? 2 : 3;
 
   const cells = [];
   // leading days from previous month
@@ -307,7 +326,10 @@ function renderCalendar() {
     cells.push({ y: ny, m: nm, d: i, otherMonth: true });
   }
 
-  calendarEl.style.gridTemplateRows = `repeat(${cells.length / 7}, 1fr)`;
+  const weekRows = cells.length / 7;
+  calendarEl.style.gridTemplateRows = `repeat(${weekRows}, 1fr)`;
+  // text lines that fit in a phone-width cell: shorter cells in 6-week months
+  const lineBudget = weekRows >= 6 ? 4 : weekRows === 5 ? 5 : 7;
 
   cells.forEach((cell, idx) => {
     const key = toDateKey(cell.y, cell.m, cell.d);
@@ -328,18 +350,21 @@ function renderCalendar() {
     btn.appendChild(num);
 
     const dayShifts = shiftsForDate(key);
-    // chips show start and end; on phones each takes two lines, so fewer fit
-    const shownCount = Math.min(dayShifts.length, maxChips);
-    const visibleCount = isNarrowScreen && dayShifts.length > maxChips ? maxChips - 1 : shownCount;
+    const visibleCount = countVisibleChips(dayShifts, isNarrowScreen, lineBudget);
     dayShifts.slice(0, visibleCount).forEach(s => {
       const wp = state.workplaces.find(w => w.id === s.workplaceId);
       const t = effectiveShiftTimes(s);
       const chip = document.createElement('div');
       chip.className = 'day-chip';
-      chip.style.background = wp ? wp.color : '#888';
+      if (s.hasActual) {
+        const checkEl = document.createElement('span');
+        checkEl.className = 'day-chip-check';
+        checkEl.textContent = '✓';
+        chip.appendChild(checkEl);
+      }
       const startEl = document.createElement('span');
       startEl.className = 'day-chip-start';
-      startEl.textContent = `${s.hasActual ? '✓' : ''}${t.start}`;
+      startEl.textContent = t.start;
       const endEl = document.createElement('span');
       endEl.className = 'day-chip-end';
       endEl.textContent = `–${t.end}`;
@@ -354,8 +379,7 @@ function renderCalendar() {
     });
     if (dayShifts.length > visibleCount) {
       const more = document.createElement('div');
-      more.className = 'day-chip';
-      more.style.background = '#888';
+      more.className = 'day-chip day-chip-more';
       more.textContent = `+${dayShifts.length - visibleCount}`;
       btn.appendChild(more);
     }
@@ -505,12 +529,14 @@ function renderDayShiftList() {
 
     const dot = createColorDot(wp ? wp.color : '#888');
 
-    const name = (wp ? wp.name : '（削除された職場）') + (s.hasActual ? '　✓実績' : '');
-    const t = effectiveShiftTimes(s);
-    const sub = `${t.start} - ${t.end}` + (t.breakMin ? `（休憩${t.breakMin}分）` : '') +
-      (s.hasActual && (s.start !== s.actualStart || s.end !== s.actualEnd) ? `　（予定 ${s.start}-${s.end}）` : '') +
-      (s.memo ? ` ・ ${s.memo}` : '');
-    const main = createRowMain('shift', name, sub);
+    // line 1: ✓ (only when an actual is recorded) + workplace, then 予定, then 実際
+    const name = (s.hasActual ? '✓ ' : '') + (wp ? wp.name : '（削除された職場）');
+    const timeText = (start, end, breakMin) =>
+      `${start} - ${end}` + (breakMin ? `（休憩${breakMin}分）` : '');
+    const lines = [`予定　${timeText(s.start, s.end, s.breakMin)}`];
+    if (s.hasActual) lines.push(`実際　${timeText(s.actualStart, s.actualEnd, s.actualBreakMin)}`);
+    if (s.memo) lines.push(`メモ　${s.memo}`);
+    const main = createRowMain('shift', name, lines.join('\n'));
 
     const income = document.createElement('span');
     income.className = 'shift-row-income';
