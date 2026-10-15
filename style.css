@@ -901,32 +901,8 @@ dialog.modal.modal-page .modal-form {
   color: var(--text);
 }
 
-.report-actual-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  background: var(--surface-2);
-  border: none;
-  border-radius: 10px;
-  padding: 12px 14px;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 8px;
-}
-
-.report-actual-toggle-chevron {
-  transition: transform 0.2s ease;
-}
-
-.report-actual-toggle[aria-expanded="true"] .report-actual-toggle-chevron {
-  transform: rotate(180deg);
-}
-
 .report-actual-stats {
   margin-top: 8px;
-  margin-bottom: 8px;
 }
 
 /* ---- year income chart ---- */

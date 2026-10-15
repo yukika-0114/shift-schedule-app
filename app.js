@@ -1242,8 +1242,6 @@ const reportHoursDiffEl = document.getElementById('reportHoursDiff');
 const reportPredictedIncomeEl = document.getElementById('reportPredictedIncome');
 const reportIncomeDiffEl = document.getElementById('reportIncomeDiff');
 const reportActualIncomeInput = document.getElementById('reportActualIncomeInput');
-const reportActualToggleBtn = document.getElementById('reportActualToggleBtn');
-const reportActualSection = document.getElementById('reportActualSection');
 let reportYear = viewYear;
 let reportMonth = viewMonth;
 
@@ -1348,12 +1346,6 @@ reportWorkHoursInput.addEventListener('input', saveReportActualWorkHours);
 reportWorkHoursInput.addEventListener('change', saveReportActualWorkHours);
 selectOnFocus(reportWorkDaysInput);
 selectOnFocus(reportWorkHoursInput);
-
-reportActualToggleBtn.addEventListener('click', () => {
-  const willOpen = reportActualSection.hidden;
-  reportActualSection.hidden = !willOpen;
-  reportActualToggleBtn.setAttribute('aria-expanded', String(willOpen));
-});
 
 document.getElementById('openMonthlyReportBtn').addEventListener('click', () => {
   reportYear = viewYear;
